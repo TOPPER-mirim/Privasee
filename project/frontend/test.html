@@ -1,11 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <title>Privasee</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; }
+    header { background: #f0f0f0; padding: 10px; display: flex; justify-content: space-between; }
+    nav a { margin: 0 10px; cursor: pointer; text-decoration: none; color: #333; }
+    .page { display: none; padding: 20px; }
+    .active { display: block; }
+    .upload-box {
+      border: 2px dashed #aaa;
+      padding: 40px;
+      text-align: center;
+      margin: 20px 0;
+    }
+  </style>
 </head>
 <body>
-    <h1>깃허브 테스트 하기11</h1>
+  <!-- 상단 메뉴 -->
+  <header>
+    <div class="logo">privasee</div>
+    <nav>
+      <a onclick="showPage('intro')">소개</a>
+      <a onclick="showPage('howto')">사용방법</a>
+      <a onclick="showPage('upload')">프로젝트</a>
+    </nav>
+  </header>
+
+  <!-- 페이지 1: 서비스 소개 -->
+  <div id="intro" class="page active">
+    <h2>Privasee 소개글</h2>
+    <p>이 서비스는 파일과 텍스트에서 개인정보를 탐지해 안전하게 관리할 수 있도록 도와줍니다.</p>
+  </div>
+
+  <!-- 페이지 2: 사용방법 -->
+  <div id="howto" class="page">
+    <h2>사용방법 소개글</h2>
+    <p>1. 파일을 업로드합니다.<br>
+       2. 분석 버튼을 누릅니다.<br>
+       3. 결과를 확인합니다.</p>
+  </div>
+
+  <!-- 페이지 3: 파일 업로드/분석 -->
+  <div id="upload" class="page">
+    <h2>파일 업로드</h2>
+    <div class="upload-box">
+      <input type="file" id="fileInput" accept=".png,.jpg,.pdf">
+      <p>파일 형식: png | jpg | pdf</p>
+      <button onclick="analyze()">분석하기</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    function showPage(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    async function analyze() {
+      document.getElementById("result").innerHTML = "<p>분석중...</p>";
+      const fileInput = document.getElementById("fileInput").files[0];
+      if (!fileInput) {
+        document.getElementById("result").innerHTML = "<p>파일을 선택해주세요.</p>";
+        return;
+      }
+      // 여기서 백엔드(FastAPI)와 연결
+      const formData = new FormData();
+      formData.append("file", fileInput);
+
+      try {
+        const res = await fetch("http://127.0.0.1:8000/analyze/image", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        document.getElementById("result").innerHTML =
+          `<h3>분석 결과</h3>
+           <p>점수: ${data.score}</p>
+           <p>감지된 항목: ${data.findings.join(", ") || "없음"}</p>`;
+      } catch (err) {
+        document.getElementById("result").innerHTML = "<p>분석 중 오류가 발생했습니다.</p>";
+        console.error(err);
+      }
+    }
+  </script>
 </body>
 </html>
