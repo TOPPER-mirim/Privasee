@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreVasee - 개인정보 위험 자가 진단 서비스</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 헤더 스타일 */
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        /* 메인 카드 */
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            padding: 2.5rem;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        /* 탭 네비게이션 */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: var(--primary-color);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary-color);
+            animation: slideIn 0.3s ease;
+        }
+
+        /* 입력 영역 */
+        .input-section {
+            margin-bottom: 2rem;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .textarea-wrapper {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .char-count {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        /* 파일 업로드 */
+        .file-upload {
+            border: 3px dashed #e5e7eb;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f9fafb;
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary-color);
+            background: #f3f4f6;
+        }
+
+        .file-upload.dragging {
+            border-color: var(--primary-color);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* 이미지 미리보기 */
+        .image-preview {
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .preview-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            background: #f9fafb;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .remove-image:hover {
+            background: rgba(239, 68, 68, 0.9);
+            transform: scale(1.1);
+        }
+
+        /* 버튼 */
+        .analyze-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .analyze-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .analyze-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* 결과 섹션 */
+        .results-section {
+            display: none;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e5e7eb;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        /* 위험도 스코어 */
+        .risk-score-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 2rem;
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.3);
+        }
+
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 1.5rem;
+            position: relative;
+        }
+
+        .score-circle svg {
+            transform: rotate(-90deg);
+        }
+
+        .score-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: 800;
+        }
+
+        .risk-level {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .risk-description {
+            opacity: 0.9;
+        }
+
+        /* 탐지 항목 */
+        .detected-items {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .item-card {
+            background: #f9fafb;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .item-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-type {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .item-risk {
+            background: var(--danger);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .item-risk.low {
+            background: var(--success);
+        }
+
+        .item-risk.medium {
+            background: var(--warning);
+        }
+
+        .item-description {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        /* 권고사항 */
+        .recommendations {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .recommendation-item {
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .recommendation-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .rec-icon {
+            color: #f59e0b;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .rec-text {
+            color: #92400e;
+            line-height: 1.5;
+        }
+
+        /* 애니메이션 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from { 
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                gap: 0.5rem;
+            }
+
+            .tab {
+                padding: 0.75rem 1rem;
+                font-size: 1rem;
+            }
+
+            .main-card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 헤더 -->
+        <div class="header">
+            <h1>🔒 PreVasee</h1>
+            <p>AI 기반 개인정보 위험 자가 진단 서비스</p>
+        </div>
+
+        <!-- 메인 카드 -->
+        <div class="main-card">
+            <!-- 탭 네비게이션 -->
+            <div class="tabs">
+                <button class="tab active" data-tab="text">텍스트 분석</button>
+                <button class="tab" data-tab="image">이미지 분석</button>
+                <button class="tab" data-tab="combined">통합 분석</button>
+            </div>
+
+            <!-- 입력 섹션 -->
+            <div class="input-section">
+                <!-- 텍스트 탭 -->
+                <div class="tab-content active" id="text-tab">
+                    <div class="textarea-wrapper">
+                        <textarea id="text-input" placeholder="SNS나 커뮤니티에 올릴 글을 입력하세요..."></textarea>
+                        <span class="char-count">0 / 5000</span>
+                    </div>
+                    <button class="analyze-btn" onclick="analyzeText()">
+                        <span>🔍</span>
+                        <span>텍스트 분석하기</span>
+                    </button>
+                </div>
+
+                <!-- 이미지 탭 -->
+                <div class="tab-content" id="image-tab">
+                    <div class="file-upload" onclick="document.getElementById('image-input').click()">
+                        <div class="upload-icon">📷</div>
+                        <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">이미지를 업로드하세요</p>
+                        <p style="color: #6b7280;">클릭하거나 드래그 앤 드롭</p>
+                        <input type="file" id="image-input" class="file-input" accept="image/*" onchange="handleImageUpload(event)">
+                    </div>
+                    <div class="image-preview" id="image-preview">
+                        <div class="preview-container">
+                            <img id="preview-img" class="preview-image" src="" alt="미리보기">
+                            <button class="remove-image" onclick="removeImage()">×</button>
+                        </div>
+                    </div>
+                    <button class="analyze-btn" onclick="analyzeImage()" style="margin-top: 1.5rem;">
+                        <span>🔍</span>
+                        <span>이미지 분석하기</span>
+                    </button>
+                </div>
+
+                <!-- 통합 분석 탭 -->
+                <div class="tab-content" id="combined-tab">
+                    <div class="textarea-wrapper">
+                        <textarea id="combined-text-input" placeholder="텍스트를 입력하세요..."></textarea>
+                        <span class="char-count">0 / 5000</span>
+                    </div>
+                    <div class="file-upload" onclick="document.getElementById('combined-image-input').click()" style="margin-top: 1.5rem;">
+                        <div class="upload-icon">📷</div>
+                        <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">이미지 추가 (선택사항)</p>
+                        <p style="color: #6b7280;">클릭하거나 드래그 앤 드롭</p>
+                        <input type="file" id="combined-image-input" class="file-input" accept="image/*" onchange="handleCombinedImageUpload(event)">
+                    </div>
+                    <div class="image-preview" id="combined-image-preview">
+                        <div class="preview-container">
+                            <img id="combined-preview-img" class="preview-image" src="" alt="미리보기">
+                            <button class="remove-image" onclick="removeCombinedImage()">×</button>
+                        </div>
+                    </div>
+                    <button class="analyze-btn" onclick="analyzeCombined()" style="margin-top: 1.5rem;">
+                        <span>🔍</span>
+                        <span>통합 분석하기</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 결과 섹션 -->
+            <div class="results-section" id="results">
+                <!-- 위험도 스코어 카드 -->
+                <div class="risk-score-card">
+                    <div class="score-circle">
+                        <svg width="150" height="150">
+                            <circle cx="75" cy="75" r="65" stroke="rgba(255,255,255,0.2)" stroke-width="10" fill="none"/>
+                            <circle id="score-progress" cx="75" cy="75" r="65" stroke="white" stroke-width="10" fill="none"
+                                    stroke-dasharray="408" stroke-dashoffset="408" stroke-linecap="round"/>
+                        </svg>
+                        <div class="score-value" id="score-value">0</div>
+                    </div>
+                    <div class="risk-level" id="risk-level">분석 중...</div>
+                    <div class="risk-description" id="risk-description">개인정보 노출 위험도를 분석하고 있습니다</div>
+                </div>
+
+                <!-- 탐지된 항목 -->
+                <div class="detected-items">
+                    <h3 class="section-title">🔍 탐지된 개인정보</h3>
+                    <div id="detected-items-list"></div>
+                </div>
+
+                <!-- 권고사항 -->
+                <div class="recommendations">
+                    <h3 class="section-title" style="margin-bottom: 1rem;">⚠️ 개선 권고사항</h3>
+                    <div id="recommendations-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 엔드포인트
+        const API_BASE = 'http://localhost:8000';
+
+        // 전역 변수
+        let selectedImage = null;
+        let combinedImage = null;
+
+        // 탭 전환
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 탭 활성화
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                // 콘텐츠 전환
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(this.dataset.tab + '-tab').classList.add('active');
+
+                // 결과 숨기기
+                document.getElementById('results').classList.remove('show');
+            });
+        });
+
+        // 텍스트 입력 카운터
+        document.getElementById('text-input').addEventListener('input', function() {
+            const count = this.value.length;
+            this.nextElementSibling.textContent = `${count} / 5000`;
+            if (count > 5000) {
+                this.value = this.value.substring(0, 5000);
+            }
+        });
+
+        document.getElementById('combined-text-input').addEventListener('input', function() {
+            const count = this.value.length;
+            this.nextElementSibling.textContent = `${count} / 5000`;
+            if (count > 5000) {
+                this.value = this.value.substring(0, 5000);
+            }
+        });
+
+        // 드래그 앤 드롭
+        const setupDragAndDrop = (uploadElement, inputElement) => {
+            uploadElement.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadElement.classList.add('dragging');
+            });
+
+            uploadElement.addEventListener('dragleave', () => {
+                uploadElement.classList.remove('dragging');
+            });
+
+            uploadElement.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadElement.classList.remove('dragging');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    const event = { target: { files: [files[0]] } };
+                    if (inputElement.id === 'image-input') {
+                        handleImageUpload(event);
+                    } else {
+                        handleCombinedImageUpload(event);
+                    }
+                }
+            });
+        };
+
+        // 드래그 앤 드롭 설정
+        document.querySelectorAll('.file-upload').forEach((element, index) => {
+            const inputId = index === 0 ? 'image-input' : 'combined-image-input';
+            setupDragAndDrop(element, document.getElementById(inputId));
+        });
+
+        // 이미지 업로드 처리
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                selectedImage = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview-img').src = e.target.result;
+                    document.getElementById('image-preview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleCombinedImageUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                combinedImage = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('combined-preview-img').src = e.target.result;
+                    document.getElementById('combined-image-preview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 이미지 제거
+        function removeImage() {
+            selectedImage = null;
+            document.getElementById('image-preview').style.display = 'none';
+            document.getElementById('image-input').value = '';
+        }
+
+        function removeCombinedImage() {
+            combinedImage = null;
+            document.getElementById('combined-image-preview').style.display = 'none';
+            document.getElementById('combined-image-input').value = '';
+        }
+
+        // 텍스트 분석
+        async function analyzeText() {
+            const text = document.getElementById('text-input').value.trim();
+            if (!text) {
+                alert('분석할 텍스트를 입력해주세요.');
+                return;
+            }
+
+            const button = event.target.closest('.analyze-btn');
+            button.disabled = true;
+            button.innerHTML = '<span class="loading"></span><span>분석 중...</span>';
+
+            try {
+                const response = await fetch(`${API_BASE}/analyze/text`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                if (!response.ok) throw new Error('분석 실패');
+                
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                alert('분석 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span>🔍</span><span>텍스트 분석하기</span>';
+            }
+        }
+
+        // 이미지 분석
+        async function analyzeImage() {
+            if (!selectedImage) {
+                alert('분석할 이미지를 업로드해주세요.');
+                return;
+            }
+
+            const button = event.target.closest('.analyze-btn');
+            button.disabled = true;
+            button.innerHTML = '<span class="loading"></span><span>분석 중...</span>';
+
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedImage);
+
+                const response = await fetch(`${API_BASE}/analyze/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('분석 실패');
+                
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                alert('분석 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span>🔍</span><span>이미지 분석하기</span>';
+            }
+        }
+
+        // 통합 분석
+        async function analyzeCombined() {
+            const text = document.getElementById('combined-text-input').value.trim();
+            
+            if (!text && !combinedImage) {
+                alert('분석할 텍스트나 이미지를 입력해주세요.');
+                return;
+            }
+
+            const button = event.target.closest('.analyze-btn');
+            button.disabled = true;
+            button.innerHTML = '<span class="loading"></span><span>분석 중...</span>';
+
+            try {
+                const formData = new FormData();
+                if (text) formData.append('text', text);
+                if (combinedImage) formData.append('file', combinedImage);
+
+                const response = await fetch(`${API_BASE}/analyze/combined`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('분석 실패');
+                
+                const result = await response.json();
+                displayResults(result);
+            } catch (error) {
+                alert('분석 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<span>🔍</span><span>통합 분석하기</span>';
+            }
+        }
+
+        // 결과 표시
+        function displayResults(data) {
+            // 결과 섹션 표시
+            const resultsSection = document.getElementById('results');
+            resultsSection.classList.add('show');
+
+            // 스코어 애니메이션
+            animateScore(data.risk_score);
+
+            // 위험 레벨
+            document.getElementById('risk-level').textContent = data.risk_level;
+            document.getElementById('risk-description').textContent = getRiskDescription(data.risk_level);
+
+            // 스코어 카드 색상 변경
+            const scoreCard = document.querySelector('.risk-score-card');
+            scoreCard.style.background = getRiskGradient(data.risk_level);
+
+            // 탐지된 항목
+            displayDetectedItems(data.detected_items);
+
+            // 권고사항
+            displayRecommendations(data.recommendations);
+
+            // 스크롤
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 스코어 애니메이션
+        function animateScore(targetScore) {
+            const scoreValue = document.getElementById('score-value');
+            const progressCircle = document.getElementById('score-progress');
+            
+            let currentScore = 0;
+            const duration = 1500;
+            const increment = targetScore / (duration / 16);
+            
+            const animation = setInterval(() => {
+                currentScore += increment;
+                if (currentScore >= targetScore) {
+                    currentScore = targetScore;
+                    clearInterval(animation);
+                }
+                
+                scoreValue.textContent = Math.round(currentScore);
+                const offset = 408 - (408 * currentScore / 100);
+                progressCircle.style.strokeDashoffset = offset;
+            }, 16);
+        }
+
+        // 탐지된 항목 표시
+        function displayDetectedItems(items) {
+            const container = document.getElementById('detected-items-list');
+            
+            if (items.length === 0) {
+                container.innerHTML = '<p style="color: #6b7280;">탐지된 개인정보가 없습니다.</p>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => {
+                const riskClass = item.risk_contribution > 20 ? '' : item.risk_contribution > 10 ? 'medium' : 'low';
+                const typeName = getItemTypeName(item.type);
+                
+                return `
+                    <div class="item-card">
+                        <div class="item-header">
+                            <span class="item-type">${typeName}</span>
+                            <span class="item-risk ${riskClass}">위험도: ${item.risk_contribution}점</span>
+                        </div>
+                        <div class="item-description">
+                            ${item.description || `${item.count}개 발견`}
+                            ${item.source === 'image_text' ? ' (이미지 내 텍스트)' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 권고사항 표시
+        function displayRecommendations(recommendations) {
+            const container = document.getElementById('recommendations-list');
+            
+            container.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item">
+                    <span class="rec-icon">⚠️</span>
+                    <span class="rec-text">${rec}</span>
+                </div>
+            `).join('');
+        }
+
+        // 헬퍼 함수들
+        function getItemTypeName(type) {
+            const names = {
+                'phone': '📱 전화번호',
+                'email': '📧 이메일',
+                'rrn': '🆔 주민등록번호',
+                'address': '📍 주소',
+                'school': '🏫 학교명',
+                'name': '👤 실명',
+                'card': '💳 카드번호',
+                'account': '🏦 계좌번호',
+                'face': '😊 얼굴',
+                'body': '👤 신체',
+                'text_in_image': '📝 이미지 내 텍스트'
+            };
+            return names[type] || type;
+        }
+
+        function getRiskDescription(level) {
+            const descriptions = {
+                '매우 위험': '즉시 조치가 필요합니다. 심각한 개인정보 노출 위험이 있습니다.',
+                '위험': '주의가 필요합니다. 여러 개인정보가 노출되어 있습니다.',
+                '주의': '일부 개인정보가 노출되어 있습니다. 검토가 필요합니다.',
+                '양호': '개인정보 노출이 적습니다. 하지만 주의는 필요합니다.',
+                '안전': '개인정보 노출 위험이 낮습니다.'
+            };
+            return descriptions[level] || '분석 완료';
+        }
+
+        function getRiskGradient(level) {
+            const gradients = {
+                '매우 위험': 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                '위험': 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                '주의': 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                '양호': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                '안전': 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+            };
+            return gradients[level] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        }
+    </script>
+</body>
+</html>

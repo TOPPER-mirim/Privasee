@@ -1,10 +1,16 @@
-# 가상환경
+# Python
 venv/
-# 캐시 파일
 __pycache__/
 *.pyc
-# IDE 설정
+
+# IDE
 .idea/
-# OS 파일
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Node / Frontend
+node_modules/
+dist/
+build/
