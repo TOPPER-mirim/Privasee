@@ -18,7 +18,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# FastAPI 앱 초기화
+# FastAPI 앱 초기화P
 app = FastAPI(title="개인정보 위험 자가 진단 서비스")
 
 # CORS 설정
