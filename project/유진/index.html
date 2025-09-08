@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privasee</title>
+    <style>
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            height: 60px;
+            box-sizing: border-box;
+        }
+        .logo {
+            margin-left: 16px;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .auth-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-right: 24px;
+        }
+        .login-btn {
+            padding: 8px 20px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+        .login-btn:hover {
+            background: #f0f0f0;
+        }
+        .signup-btn {
+            padding: 8px 20px;
+            border: none;
+            background: #4f8cff;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.08);
+        }
+        .signup-btn:hover {
+            background: #2563eb;
+        }
+        a {
+            text-decoration: none;
+        }
+        p {
+            margin: 0;
+        }
+        .header-divider {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <p class="logo">Privasee</p>
+        <nav>
+            <a href="">사용방법</a> |
+            <a href="">분석받기</a> |
+            <a href="">마이페이지</a>
+        </nav>
+        <div class="auth-nav">
+            <button class="login-btn">로그인</button>
+            <button class="signup-btn">회원가입</button>
+        </div>
+    </header>
+    <hr class="header-divider">
+    <main>
+        <p>소개글</p>
+    </main>
+</body>
+</html>
