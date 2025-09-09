@@ -62,6 +62,21 @@
         a {
             text-decoration: none;
         }
+        .nav-link {
+            position: relative;
+            padding-bottom: 4px;
+        }
+        .nav-link.active::after {
+            content: "";
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 3px;
+            background: #4f8cff;
+            border-radius: 2px;
+        }
         p {
             margin: 0;
         }
@@ -76,9 +91,9 @@
     <header>
         <p class="logo">Privasee</p>
         <nav>
-            <a href="사용방법.html">사용방법</a> |
-            <a href="분석받기.html">분석받기</a> |
-            <a href="">마이페이지</a>
+            <a href="사용방법.html" class="nav-link active">사용방법</a> |
+            <a href="분석받기.html" class="nav-link">분석받기</a> |
+            <a href="" class="nav-link">마이페이지</a>
         </nav>
         <div class="auth-nav">
             <button class="login-btn">로그인</button>
@@ -87,7 +102,7 @@
     </header>
     <hr class="header-divider">
     <main>
-        <p>소개글</p>
+        <p>사용방법</p>
     </main>
 </body>
 </html>

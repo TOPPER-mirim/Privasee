@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privasee</title>
+    <style>
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            height: 60px;
+            box-sizing: border-box;
+        }
+        .logo {
+            margin-left: 16px;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .auth-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-right: 24px;
+        }
+        .login-btn {
+            padding: 8px 20px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+        .login-btn:hover {
+            background: #f0f0f0;
+        }
+        .signup-btn {
+            padding: 8px 20px;
+            border: none;
+            background: #4f8cff;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.08);
+        }
+        .signup-btn:hover {
+            background: #2563eb;
+        }
+        a {
+            text-decoration: none;
+        }
+        .nav-link {
+            position: relative;
+            padding-bottom: 4px;
+        }
+        .nav-link.active::after {
+            content: "";
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 3px;
+            background: #4f8cff;
+            border-radius: 2px;
+        }
+        p {
+            margin: 0;
+        }
+        .header-divider {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 0;
+        }
+        /* 메인 컨텐츠 중앙 정렬 */
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            gap: 32px;
+        }
+        .photo-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #4f8cff;
+            border-radius: 16px;
+            padding: 40px 0;
+            background: #f9fbff;
+            min-width: 480px;
+            max-width: 700px;
+            width: 100%;
+        }
+        .photo-upload span {
+            font-size: 1.15rem;
+            color: #2563eb;
+            margin-bottom: 12px;
+        }
+        /* input file 커스텀 */
+        .file-input-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 16px;
+            width: 320px;
+        }
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 28px;
+            background: #fff;
+            color: #4f8cff;
+            border: 2px solid #4f8cff;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.04);
+        }
+        .file-input-label:hover {
+            background: #eaf2ff;
+            color: #2563eb;
+            border-color: #2563eb;
+        }
+        .photo-upload input[type="file"] {
+            display: none;
+        }
+        .file-name {
+            margin-top: 10px;
+            font-size: 0.97rem;
+            color: #555;
+            max-width: 320px;
+            text-align: center;
+            word-break: break-all;
+            min-height: 22px; /* 파일명 없을 때도 높이 고정 */
+        }
+        .analyze-btn {
+            margin-top: 32px;
+            padding: 12px 48px;
+            background: #4f8cff;
+            color: #fff;
+            border: none;
+            border-radius: 24px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.08);
+        }
+        .analyze-btn:hover {
+            background: #2563eb;
+        }
+        .desc-box {
+            max-width: 500px;
+            text-align: center;
+            font-size: 1.1rem;
+            color: #333;
+            background: #f5f7fa;
+            border-radius: 12px;
+            padding: 24px 32px;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.05);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <p class="logo">Privasee</p>
+        <nav>
+            <a href="사용방법.html" class="nav-link">사용방법</a> |
+            <a href="분석받기.html" class="nav-link active">분석받기</a> |
+            <a href="" class="nav-link">마이페이지</a>
+        </nav>
+        <div class="auth-nav">
+            <button class="login-btn">로그인</button>
+            <button class="signup-btn">회원가입</button>
+        </div>
+    </header>
+    <hr class="header-divider">
+    <main>
+        <div class="main-container">
+            <div class="photo-upload">
+                <span>사진을 첨부하세요</span>
+                <div class="file-input-wrapper">
+                    <label for="file-upload" class="file-input-label">파일 선택</label>
+                    <input type="file" id="file-upload" accept="image/*" onchange="showFileName(event)">
+                    <div class="file-name" id="file-name"></div>
+                    <!-- 이미지 미리보기 영역 -->
+                    <img id="preview-image" style="margin-top:16px; max-width:300px; border-radius:8px; display:none;" />
+                </div>
+            </div>
+            <button class="analyze-btn">분석받기</button>
+            <div class="desc-box">
+                분석받을 이미지를 첨부한 후, 아래의 안내에 따라 진행해 주세요.<br>
+                이미지는 개인정보 보호를 위해 안전하게 처리됩니다.
+            </div>
+        </div>
+        <script>
+    function showFileName(event) {
+        const input = event.target;
+        const fileNameDiv = document.getElementById('file-name');
+        const previewImg = document.getElementById('preview-image');
+
+        if (input.files && input.files[0]) {
+            fileNameDiv.textContent = input.files[0].name;
+            // 이미지 미리보기
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewImg.style.display = "block";
+            }
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            fileNameDiv.textContent = '';
+            previewImg.style.display = "none";
+        }
+    }
+</script>
+    </main>
+</body>
+</html>
