@@ -61,6 +61,27 @@
         }
         a {
             text-decoration: none;
+            color: #1a237e; /* 네이비색 고정 */
+            transition: border-bottom 0.2s;
+        }
+        .nav-link {
+            position: relative;
+            padding-bottom: 4px;
+        }
+        .nav-link.active::after {
+            content: "";
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 3px;
+            background: #4f8cff;
+            border-radius: 2px;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+            text-underline-offset: 4px;
         }
         p {
             margin: 0;
@@ -70,15 +91,35 @@
             border-top: 1px solid #ccc;
             margin: 0;
         }
+        /* main 중앙 정렬 및 스타일 */
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+        }
+        .main-desc {
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 1.7;
+            color: #222;
+        }
+        .main-desc .main-title {
+            font-weight: bold;
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
     <header>
         <p class="logo">Privasee</p>
         <nav>
-            <a href="사용방법.html">사용방법</a> |
-            <a href="분석받기.html">분석받기</a> |
-            <a href="">마이페이지</a>
+            <a href="index.html" class="nav-link active">홈</a> |
+            <a href="분석받기.html" class="nav-link">분석받기</a> |
+            <a href="" class="nav-link">마이페이지</a>
         </nav>
         <div class="auth-nav">
             <button class="login-btn">로그인</button>
@@ -87,7 +128,11 @@
     </header>
     <hr class="header-divider">
     <main>
-        <p>소개글</p>
+        <p class="main-desc">
+            <span class="main-title">당신의 게시물 안전한가요?</span>
+            Privasee는 AI로 글과 사진 속 개인정보 노출 위험을 분석하고, 안전 점수를 제공합니다. <br>
+            업로드 전 단 한 번의 점검으로, 소중한 정보를 지키세요.
+        </p>
     </main>
 </body>
 </html>

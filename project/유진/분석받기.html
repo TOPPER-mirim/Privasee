@@ -185,7 +185,7 @@
     <header>
         <p class="logo">Privasee</p>
         <nav>
-            <a href="사용방법.html" class="nav-link">사용방법</a> |
+            <a href="index.html" class="nav-link">홈</a> |
             <a href="분석받기.html" class="nav-link active">분석받기</a> |
             <a href="" class="nav-link">마이페이지</a>
         </nav>
@@ -198,12 +198,11 @@
     <main>
         <div class="main-container">
             <div class="photo-upload">
-                <span>사진을 첨부하세요</span>
+                <span id="upload-guide">사진을 첨부하세요</span>
                 <div class="file-input-wrapper">
                     <label for="file-upload" class="file-input-label">파일 선택</label>
                     <input type="file" id="file-upload" accept="image/*" onchange="showFileName(event)">
                     <div class="file-name" id="file-name"></div>
-                    <!-- 이미지 미리보기 영역 -->
                     <img id="preview-image" style="margin-top:16px; max-width:300px; border-radius:8px; display:none;" />
                 </div>
             </div>
@@ -218,6 +217,7 @@
         const input = event.target;
         const fileNameDiv = document.getElementById('file-name');
         const previewImg = document.getElementById('preview-image');
+        const guideText = document.getElementById('upload-guide');
 
         if (input.files && input.files[0]) {
             fileNameDiv.textContent = input.files[0].name;
@@ -228,9 +228,13 @@
                 previewImg.style.display = "block";
             }
             reader.readAsDataURL(input.files[0]);
+            // 안내 문구 숨기기
+            if (guideText) guideText.style.display = "none";
         } else {
             fileNameDiv.textContent = '';
             previewImg.style.display = "none";
+            // 안내 문구 다시 보이기
+            if (guideText) guideText.style.display = "block";
         }
     }
 </script>
