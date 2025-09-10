@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>분석 결과 - Privasee</title>
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            color: #1f2937;
+            margin: 0;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            height: 60px;
+            box-sizing: border-box;
+            background: transparent;
+        }
+        .logo {
+            margin-left: 16px;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 60px;
+        }
+        .auth-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-right: 24px;
+        }
+        .login-btn {
+            padding: 8px 20px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+        .login-btn:hover {
+            background: #f0f0f0;
+        }
+        .signup-btn {
+            padding: 8px 20px;
+            border: none;
+            background: #4f8cff;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.08);
+        }
+        .signup-btn:hover {
+            background: #2563eb;
+        }
+        a {
+            text-decoration: none;
+            color: #1a237e;
+            font-size: 1rem;
+            /* line-height, height 제거 */
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .nav-link {
+            position: relative;
+            padding-bottom: 4px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+        }
+        .nav-link.active::after {
+            content: "";
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 3px;
+            background: #4f8cff;
+            border-radius: 2px;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+        p {
+            margin: 0;
+        }
+        .header-divider {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 0;
+        }
+        /* 결과 레이아웃 */
+        .result-container {
+            display: flex;
+            max-width: 1100px;
+            margin: 60px auto 0 auto;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.10), 0 10px 10px -5px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .left-panel {
+            flex: 1.1;
+            background: #f9fafb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            min-height: 500px;
+            border-right: 2px solid #e5e7eb;
+        }
+        .preview-image {
+            max-width: 90%;
+            max-height: 420px;
+            border-radius: 18px;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+            background: #fff;
+            object-fit: contain;
+        }
+        .right-panel {
+            flex: 1.4;
+            display: flex;
+            flex-direction: column;
+            justify-content: stretch;
+            padding: 48px 40px;
+            gap: 40px;
+        }
+        .score-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            color: #fff;
+            text-align: center;
+            padding: 32px 16px 24px 16px;
+            margin-bottom: 0;
+            box-shadow: 0 10px 20px rgba(99,102,241,0.10);
+        }
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1rem auto;
+            position: relative;
+        }
+        .score-circle svg {
+            transform: rotate(-90deg);
+        }
+        .score-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+        .score-label {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .risk-level-section {
+            background: #f9fafb;
+            border-radius: 16px;
+            padding: 28px 20px;
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            box-shadow: 0 4px 12px rgba(99,102,241,0.04);
+        }
+        .risk-level-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #222;
+        }
+        .risk-level-list {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .risk-level-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 18px;
+            padding: 16px 18px;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.03);
+            border-left: 6px solid transparent;
+            font-size: 1.05rem;
+        }
+        .risk-level-item.good {
+            border-color: #10b981;
+        }
+        .risk-level-item.normal {
+            border-color: #3b82f6;
+        }
+        .risk-level-item.warning {
+            border-color: #f59e0b;
+        }
+        .risk-level-item.danger {
+            border-color: #ef4444;
+        }
+        .risk-level-badge {
+            min-width: 60px;
+            font-weight: bold;
+            font-size: 1.05rem;
+            border-radius: 8px;
+            padding: 4px 14px;
+            color: #fff;
+            margin-right: 8px;
+            text-align: center;
+        }
+        .risk-level-badge.good {
+            background: #10b981;
+        }
+        .risk-level-badge.normal {
+            background: #3b82f6;
+        }
+        .risk-level-badge.warning {
+            background: #f59e0b;
+        }
+        .risk-level-badge.danger {
+            background: #ef4444;
+        }
+        @media (max-width: 900px) {
+            .result-container {
+                flex-direction: column;
+                max-width: 98vw;
+            }
+            .left-panel, .right-panel {
+                border-right: none;
+                border-bottom: 2px solid #e5e7eb;
+                min-height: 240px;
+                padding: 24px 10px;
+            }
+            .right-panel {
+                padding: 32px 10px;
+            }
+            nav {
+                position: static;
+                transform: none;
+                justify-content: center;
+                width: 100%;
+                height: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <p class="logo">Privasee</p>
+        <nav>
+            <a href="index.html" class="nav-link">홈</a> |
+            <a href="analysis.html" class="nav-link active">분석받기</a> |
+            <a href="mypage.html" class="nav-link">마이페이지</a>
+        </nav>
+        <div class="auth-nav">
+            <button class="login-btn">로그인</button>
+            <button class="signup-btn">회원가입</button>
+        </div>
+    </header>
+    <hr class="header-divider">
+    <div class="result-container">
+        <!-- 왼쪽: 이미지 미리보기 -->
+        <div class="left-panel">
+            <img src="첨부된_이미지_경로.jpg" alt="분석 이미지" class="preview-image" id="result-image">
+        </div>
+        <!-- 오른쪽: 점수 + 경고 메시지 -->
+        <div class="right-panel">
+            <!-- 점수 영역 -->
+            <div class="score-section">
+                <div class="score-label">안전 점수</div>
+                <div class="score-circle">
+                    <svg width="120" height="120">
+                        <circle cx="60" cy="60" r="52" stroke="rgba(255,255,255,0.2)" stroke-width="10" fill="none"/>
+                        <circle id="score-progress" cx="60" cy="60" r="52" stroke="#fff" stroke-width="10" fill="none"
+                                stroke-dasharray="326" stroke-dashoffset="326" stroke-linecap="round"/>
+                    </svg>
+                    <div class="score-value" id="score-value">0</div>
+                </div>
+            </div>
+            <!-- 경고 메시지 영역 -->
+            <div class="risk-level-section">
+                <div class="risk-level-title">위험 단계 및 경고 메시지</div>
+                <div class="risk-level-list">
+                    <div class="risk-level-item good">
+                        <span class="risk-level-badge good">양호</span>
+                        <span>개인정보 노출 위험이 거의 없습니다. 안심하고 게시하셔도 됩니다.</span>
+                    </div>
+                    <div class="risk-level-item normal">
+                        <span class="risk-level-badge normal">보통</span>
+                        <span>일부 개인정보가 노출될 가능성이 있습니다. 게시 전 한 번 더 확인해 주세요.</span>
+                    </div>
+                    <div class="risk-level-item warning">
+                        <span class="risk-level-badge warning">주의</span>
+                        <span>중요한 개인정보가 노출될 수 있습니다. 게시 전 반드시 민감 정보가 없는지 점검하세요.</span>
+                    </div>
+                    <div class="risk-level-item danger">
+                        <span class="risk-level-badge danger">심각</span>
+                        <span>매우 민감한 개인정보가 다량 노출될 수 있습니다. 게시를 삼가고, 즉시 수정이 필요합니다.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // 예시: 실제 점수와 이미지 경로를 서버에서 받아와서 적용
+        const score = 78; // 예시 점수
+        const imageUrl = "첨부된_이미지_경로.jpg"; // 실제 이미지 경로로 교체
+
+        // 점수 표시 애니메이션
+        function animateScore(targetScore) {
+            const scoreValue = document.getElementById('score-value');
+            const progressCircle = document.getElementById('score-progress');
+            let currentScore = 0;
+            const duration = 1200;
+            const increment = targetScore / (duration / 16);
+
+            const animation = setInterval(() => {
+                currentScore += increment;
+                if (currentScore >= targetScore) {
+                    currentScore = targetScore;
+                    clearInterval(animation);
+                }
+                scoreValue.textContent = Math.round(currentScore);
+                const offset = 326 - (326 * currentScore / 100);
+                progressCircle.style.strokeDashoffset = offset;
+            }, 16);
+        }
+
+        // 이미지 적용
+        document.getElementById('result-image').src = imageUrl;
+
+        // 점수 애니메이션 실행
+        animateScore(score);
+    </script>
+</body>
+</html>
