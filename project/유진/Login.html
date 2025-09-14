@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privasee - 로그인</title>
+    <style>
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #fff;
+            margin: 0;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            height: 60px;
+            box-sizing: border-box;
+        }
+        .logo {
+            margin-left: 16px;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 60px;
+        }
+        .auth-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-right: 24px;
+        }
+        .login-btn {
+            padding: 8px 20px;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: background 0.2s;
+        }
+        .login-btn:hover {
+            background: #f0f0f0;
+        }
+        .signup-btn {
+            padding: 8px 20px;
+            border: none;
+            background: #4f8cff;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(79,140,255,0.08);
+        }
+        .signup-btn:hover {
+            background: #2563eb;
+        }
+        a {
+            text-decoration: none;
+            color: #1a237e;
+            font-size: 1rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .nav-link {
+            position: relative;
+            padding-bottom: 4px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+        }
+        .nav-link.active::after {
+            content: "";
+            display: block;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 3px;
+            background: #4f8cff;
+            border-radius: 2px;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+        p {
+            margin: 0;
+        }
+        .header-divider {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 0;
+        }
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+        .logo-center {
+            font-family: 'Pretendard', 'Segoe UI', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            margin-top: 70px;
+            margin-bottom: 36px;
+            text-align: center;
+        }
+        .tab-wrapper {
+            display: flex;
+            width: 370px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 16px 0 12px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 0;
+            color: #222;
+            transition: background 0.2s;
+            z-index: 1;
+            position: relative;
+        }
+        .tab-btn.active {
+            color: #222;
+        }
+        .tab-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            background: #ddd;
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
+            z-index: 0;
+            transition: left 0.3s cubic-bezier(.4,0,.2,1);
+        }
+        .tab-btn:not(.active) {
+            background: none;
+        }
+        .tab-content-wrapper {
+            width: 370px;
+            min-height: 320px;
+            position: relative;
+        }
+        .tab-content {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateX(40px);
+            transition: opacity 0.25s, transform 0.3s;
+            z-index: 1;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .tab-content.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+            z-index: 2;
+        }
+        .tab-content:not(.active) {
+            z-index: 1;
+        }
+        .input-label {
+            font-size: 0.98rem;
+            margin-bottom: 2px;
+            color: #222;
+        }
+        .input-box {
+            display: flex;
+            align-items: center;
+            background: #ddd;
+            border-radius: 12px;
+            padding: 0 0 0 16px;
+            height: 48px;
+            margin-bottom: 0;
+        }
+        .input-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 1.05rem;
+            flex: 1;
+            padding: 12px 12px 12px 10px;
+        }
+        .input-icon {
+            font-size: 1.3rem;
+            margin-right: 6px;
+        }
+        .forgot-link {
+            font-size: 0.92rem;
+            color: #222;
+            text-decoration: underline;
+            margin-left: auto;
+            margin-top: 6px;
+            margin-bottom: 0;
+            display: block;
+            width: fit-content;
+        }
+        .login-btn-main {
+            width: 100%;
+            background: #ddd;
+            border: none;
+            border-radius: 24px;
+            font-size: 1.15rem;
+            font-weight: 500;
+            padding: 14px 0;
+            margin: 18px 0 0 0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .login-btn-main:hover {
+            background: #ccc;
+        }
+        .or-divider {
+            display: flex;
+            align-items: center;
+            margin: 32px 0 18px 0;
+            width: 370px;
+        }
+        .or-divider-line {
+            flex: 1;
+            border: none;
+            border-top: 1.5px solid #bbb;
+        }
+        .or-divider-text {
+            margin: 0 14px;
+            color: #444;
+            font-size: 1rem;
+        }
+        .google-btn {
+            width: 370px;
+            background: #ddd;
+            border: none;
+            border-radius: 24px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            padding: 13px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .google-btn:hover {
+            background: #ccc;
+        }
+        .google-icon {
+            width: 28px;
+            height: 28px;
+            background: none;
+            display: inline-block;
+        }
+        @media (max-width: 500px) {
+            .tab-wrapper, .tab-divider, .login-form, .or-divider, .google-btn {
+                width: 94vw;
+                min-width: 0;
+                max-width: 98vw;
+            }
+        }
+        /* 회원가입 폼이 보일 때 아래 구글 로그인 영역을 내리기 위한 클래스 */
+        .signup-mode .or-divider {
+            margin-top: 160px !important; /* "또는"만 충분히 아래로 */
+        }
+        .signup-mode .google-btn {
+            margin-top: 18px !important;   /* 구글 로그인 버튼은 기본 간격만 유지 */
+        }
+    </style>
+    <!-- 구글 아이콘용 폰트어썸 or SVG 사용 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <header>
+        <p class="logo">Privasee</p>
+        <nav>
+            <a href="index.html" class="nav-link">홈</a> |
+            <a href="analysis.html" class="nav-link">분석받기</a> |
+            <a href="mypage.html" class="nav-link">마이페이지</a>
+        </nav>
+        <div class="auth-nav">
+            <button class="login-btn" onclick="location.href='Login.html'">로그인</button>
+            <button class="signup-btn">회원가입</button>
+        </div>
+    </header>
+    <hr class="header-divider">
+    <div class="login-container" id="loginContainer">
+        <div class="logo-center">privasee</div>
+        <div class="tab-wrapper" id="tabWrapper">
+            <button class="tab-btn active" id="loginTabBtn" type="button">로그인</button>
+            <button class="tab-btn" id="signupTabBtn" type="button">회원가입</button>
+            <div class="tab-slider" id="tabSlider"></div>
+        </div>
+        <hr class="tab-divider">
+        <div class="tab-content-wrapper">
+            <form class="login-form tab-content active" id="loginForm">
+                <label class="input-label" for="userid">아이디 id</label>
+                <div class="input-box">
+                    <span class="input-icon"><i class="fa-regular fa-user"></i></span>
+                    <input type="text" id="userid" placeholder="아이디를 입력하세요">
+                </div>
+                <label class="input-label" for="password">비밀번호 password</label>
+                <div class="input-box">
+                    <span class="input-icon"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" id="password" placeholder="비밀번호를 입력하세요">
+                </div>
+                <a href="#" class="forgot-link">비밀번호를 잊어버렸어요</a>
+                <button type="submit" class="login-btn-main">로그인</button>
+            </form>
+            <form class="login-form tab-content" id="signupForm" >
+                <label class="input-label" for="signup-userid">아이디 id</label>
+                <div class="input-box">
+                    <span class="input-icon"><i class="fa-regular fa-user"></i></span>
+                    <input type="text" id="signup-userid" placeholder="아이디를 입력하세요">
+                </div>
+                <label class="input-label" for="signup-password">비밀번호 password</label>
+                <div class="input-box">
+                    <span class="input-icon"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" id="signup-password" placeholder="비밀번호를 입력하세요">
+                </div>
+                <label class="input-label" for="signup-password2">비밀번호 확인</label>
+                <div class="input-box">
+                    <span class="input-icon"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" id="signup-password2" placeholder="비밀번호를 다시 입력하세요">
+                </div>
+                <button type="submit" class="login-btn-main">회원가입</button>
+            </form>
+        </div>
+        <div class="or-divider">
+            <hr class="or-divider-line">
+            <span class="or-divider-text">또는</span>
+            <hr class="or-divider-line">
+        </div>
+        <button class="google-btn">
+            <img class="google-icon" src="./img/google.png" alt="Google">
+            google 로그인
+        </button>
+    </div>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginTabBtn = document.getElementById('loginTabBtn');
+    const signupTabBtn = document.getElementById('signupTabBtn');
+    const tabSlider = document.getElementById('tabSlider');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
+    const loginContainer = document.getElementById('loginContainer');
+
+    function activateTab(isLogin) {
+        if(isLogin) {
+            loginTabBtn.classList.add('active');
+            signupTabBtn.classList.remove('active');
+            tabSlider.style.left = '0%';
+            loginForm.classList.add('active');
+            signupForm.classList.remove('active');
+            loginContainer.classList.remove('signup-mode');
+        } else {
+            loginTabBtn.classList.remove('active');
+            signupTabBtn.classList.add('active');
+            tabSlider.style.left = '50%';
+            signupForm.classList.add('active');
+            loginForm.classList.remove('active');
+            loginContainer.classList.add('signup-mode');
+        }
+    }
+
+    loginTabBtn.addEventListener('click', function() {
+        if (!loginTabBtn.classList.contains('active')) {
+            activateTab(true);
+        }
+    });
+    signupTabBtn.addEventListener('click', function() {
+        if (!signupTabBtn.classList.contains('active')) {
+            activateTab(false);
+        }
+    });
+
+    // 초기 슬라이더 위치
+    tabSlider.style.left = '0%';
+});
+    </script>
+</body>
+</html>
