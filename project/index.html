@@ -99,6 +99,44 @@
             animation: slideIn 0.3s ease;
         }
 
+        /* 사용자 정보 입력 */
+        .user-context {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .context-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+
+        .context-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .context-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .context-group label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+
+        .context-group select, .context-group input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
         /* 입력 영역 */
         .input-section {
             margin-bottom: 2rem;
@@ -267,6 +305,31 @@
             display: block;
         }
 
+        /* AI 피드백 카드 */
+        .ai-feedback-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 16px;
+            padding: 2rem;
+            color: white;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(240, 147, 251, 0.3);
+        }
+
+        .ai-feedback-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .ai-feedback-content {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            opacity: 0.95;
+        }
+
         /* 위험도 스코어 */
         .risk-score-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -306,6 +369,70 @@
 
         .risk-description {
             opacity: 0.9;
+        }
+
+        /* 조합 위험 카드 */
+        .combination-risks {
+            margin-bottom: 2rem;
+        }
+
+        .combo-risk-card {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            color: #7c2d12;
+            border-left: 5px solid #dc2626;
+        }
+
+        .combo-risk-card.medium {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-left-color: #f59e0b;
+        }
+
+        .combo-risk-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .combo-risk-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .combo-risk-severity {
+            background: rgba(220, 38, 38, 0.2);
+            color: #7f1d1d;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .combo-risk-severity.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: #92400e;
+        }
+
+        .combo-risk-description {
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .combo-matched-types {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .matched-type-tag {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
         }
 
         /* 탐지 항목 */
@@ -453,6 +580,10 @@
             .main-card {
                 padding: 1.5rem;
             }
+
+            .context-inputs {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -466,6 +597,36 @@
 
         <!-- 메인 카드 -->
         <div class="main-card">
+            <!-- 사용자 정보 입력 -->
+            <div class="user-context">
+                <div class="context-title">🧑‍💻 맞춤형 분석을 위한 정보 (선택사항)</div>
+                <div class="context-inputs">
+                    <div class="context-group">
+                        <label>연령대</label>
+                        <select id="age-group">
+                            <option value="general">선택 안함</option>
+                            <option value="teen">청소년 (13-19세)</option>
+                            <option value="young">청년 (20-29세)</option>
+                            <option value="adult">성인 (30-49세)</option>
+                            <option value="middle">중년 (50-64세)</option>
+                            <option value="senior">시니어 (65세 이상)</option>
+                        </select>
+                    </div>
+                    <div class="context-group">
+                        <label>활동 목적</label>
+                        <select id="activity-type">
+                            <option value="general">일반</option>
+                            <option value="sns">SNS 게시</option>
+                            <option value="community">커뮤니티 활동</option>
+                            <option value="business">비즈니스/업무</option>
+                            <option value="dating">소개팅/만남</option>
+                            <option value="job">구직/채용</option>
+                            <option value="study">학습/교육</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <!-- 탭 네비게이션 -->
             <div class="tabs">
                 <button class="tab active" data-tab="text">텍스트 분석</button>
@@ -534,6 +695,17 @@
 
             <!-- 결과 섹션 -->
             <div class="results-section" id="results">
+                <!-- AI 피드백 카드 -->
+                <div class="ai-feedback-card">
+                    <div class="ai-feedback-title">
+                        <span>🤖</span>
+                        <span>AI 맞춤형 피드백</span>
+                    </div>
+                    <div class="ai-feedback-content" id="ai-feedback">
+                        개인정보 노출 위험도를 분석하고 있습니다...
+                    </div>
+                </div>
+
                 <!-- 위험도 스코어 카드 -->
                 <div class="risk-score-card">
                     <div class="score-circle">
@@ -548,6 +720,12 @@
                     <div class="risk-description" id="risk-description">개인정보 노출 위험도를 분석하고 있습니다</div>
                 </div>
 
+                <!-- 조합 위험 -->
+                <div class="combination-risks" id="combination-risks" style="display: none;">
+                    <h3 class="section-title">⚠️ 조합 위험 분석</h3>
+                    <div id="combination-risks-list"></div>
+                </div>
+
                 <!-- 탐지된 항목 -->
                 <div class="detected-items">
                     <h3 class="section-title">🔍 탐지된 개인정보</h3>
@@ -556,7 +734,7 @@
 
                 <!-- 권고사항 -->
                 <div class="recommendations">
-                    <h3 class="section-title" style="margin-bottom: 1rem;">⚠️ 개선 권고사항</h3>
+                    <h3 class="section-title" style="margin-bottom: 1rem;">💡 개선 권고사항</h3>
                     <div id="recommendations-list"></div>
                 </div>
             </div>
@@ -570,6 +748,14 @@
         // 전역 변수
         let selectedImage = null;
         let combinedImage = null;
+
+        // 사용자 컨텍스트 가져오기
+        function getUserContext() {
+            return {
+                age_group: document.getElementById('age-group').value,
+                activity_type: document.getElementById('activity-type').value
+            };
+        }
 
         // 탭 전환
         document.querySelectorAll('.tab').forEach(tab => {
@@ -692,12 +878,16 @@
             button.innerHTML = '<span class="loading"></span><span>분석 중...</span>';
 
             try {
+                const userContext = getUserContext();
                 const response = await fetch(`${API_BASE}/analyze/text`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ text: text })
+                    body: JSON.stringify({ 
+                        text: text,
+                        user_context: userContext
+                    })
                 });
 
                 if (!response.ok) throw new Error('분석 실패');
@@ -726,6 +916,9 @@
             try {
                 const formData = new FormData();
                 formData.append('file', selectedImage);
+                
+                const userContext = getUserContext();
+                formData.append('user_context', JSON.stringify(userContext));
 
                 const response = await fetch(`${API_BASE}/analyze/image`, {
                     method: 'POST',
@@ -761,6 +954,9 @@
                 const formData = new FormData();
                 if (text) formData.append('text', text);
                 if (combinedImage) formData.append('file', combinedImage);
+                
+                const userContext = getUserContext();
+                formData.append('user_context', JSON.stringify(userContext));
 
                 const response = await fetch(`${API_BASE}/analyze/combined`, {
                     method: 'POST',
@@ -785,6 +981,9 @@
             const resultsSection = document.getElementById('results');
             resultsSection.classList.add('show');
 
+            // AI 피드백 표시
+            document.getElementById('ai-feedback').textContent = data.personalized_feedback;
+
             // 스코어 애니메이션
             animateScore(data.risk_score);
 
@@ -795,6 +994,9 @@
             // 스코어 카드 색상 변경
             const scoreCard = document.querySelector('.risk-score-card');
             scoreCard.style.background = getRiskGradient(data.risk_level);
+
+            // 조합 위험 표시
+            displayCombinationRisks(data.combination_risks);
 
             // 탐지된 항목
             displayDetectedItems(data.detected_items);
@@ -826,6 +1028,38 @@
                 const offset = 408 - (408 * currentScore / 100);
                 progressCircle.style.strokeDashoffset = offset;
             }, 16);
+        }
+
+        // 조합 위험 표시
+        function displayCombinationRisks(risks) {
+            const container = document.getElementById('combination-risks');
+            const risksList = document.getElementById('combination-risks-list');
+            
+            if (risks.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            risksList.innerHTML = risks.map(risk => {
+                const severityClass = risk.severity === 'high' ? '' : 'medium';
+                const severityText = risk.severity === 'high' ? '높음' : '보통';
+                
+                return `
+                    <div class="combo-risk-card ${severityClass}">
+                        <div class="combo-risk-header">
+                            <span class="combo-risk-name">${risk.name}</span>
+                            <span class="combo-risk-severity ${severityClass}">${severityText}</span>
+                        </div>
+                        <div class="combo-risk-description">${risk.description}</div>
+                        <div class="combo-matched-types">
+                            ${risk.matched_types.map(type => 
+                                `<span class="matched-type-tag">${getItemTypeName(type).replace(/[🔍📱📧🆔📍🏫👤💳🏦🙂👕]/g, '')}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // 탐지된 항목 표시
@@ -862,7 +1096,7 @@
             
             container.innerHTML = recommendations.map(rec => `
                 <div class="recommendation-item">
-                    <span class="rec-icon">⚠️</span>
+                    <span class="rec-icon">💡</span>
                     <span class="rec-text">${rec}</span>
                 </div>
             `).join('');
@@ -880,31 +1114,36 @@
                 'account': '🏦 계좌번호',
                 'face': '🙂 얼굴',
                 'body': '👕 신체 노출',
-            'other': '🔎 기타'
+                'text_in_image': '🔍 이미지 내 텍스트',
+                'workplace': '🏢 직장정보',
+                'birth_date': '📅 생년월일',
+                'age': '🎂 나이',
+                'other': '🔎 기타'
             };
-        return names[type] || '🔎 기타';
+            return names[type] || '🔎 기타';
         }
 
         function getRiskDescription(level) {
-            const desc = {
-                '낮음': '개인정보 노출 위험이 거의 없습니다.',
-                '보통': '일부 개인정보가 노출될 가능성이 있습니다.',
-                '높음': '중요한 개인정보가 다수 노출될 수 있습니다.',
-                '심각': '매우 민감한 개인정보가 다량 노출될 수 있습니다.'
-                };
-                return desc[level] || '개인정보 노출 위험도를 분석하고 있습니다';
-            }
+            const descriptions = {
+                '안전': '개인정보 노출 위험이 거의 없습니다.',
+                '양호': '개인정보 노출 위험이 낮습니다.',
+                '주의': '일부 개인정보가 노출될 가능성이 있습니다.',
+                '위험': '중요한 개인정보가 다수 노출될 수 있습니다.',
+                '매우 위험': '매우 민감한 개인정보가 다량 노출될 수 있습니다.'
+            };
+            return descriptions[level] || '개인정보 노출 위험도를 분석하고 있습니다';
+        }
 
         function getRiskGradient(level) {
             const gradients = {
-                '낮음': 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                '보통': 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-                '높음': 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)',
-                '심각': 'linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%)'
+                '안전': 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                '양호': 'linear-gradient(135deg, #22c55e 0%, #4ade80 100%)',
+                '주의': 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                '위험': 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)',
+                '매우 위험': 'linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%)'
             };
             return gradients[level] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
         }
-
     </script>
 </body>
 </html>
