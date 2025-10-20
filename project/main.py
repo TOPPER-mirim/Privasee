@@ -4,18 +4,14 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import re
-import base64
 import cv2
 import numpy as np
 import mediapipe as mp
 import easyocr
 from typing import List, Dict, Optional
-import io
-from PIL import Image
 import logging
-import openai
-import os
 from datetime import datetime
+from collections import Counter
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -33,22 +29,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OpenAI API 설정
-openai.api_key = os.getenv("OPENAI_API_KEY")  # 환경 변수에서 API 키 가져오기
-
 # MediaPipe 초기화
 mp_face_detection = mp.solutions.face_detection
+mp_face_mesh = mp.solutions.face_mesh
 mp_pose = mp.solutions.pose
+mp_hands = mp.solutions.hands
+
 face_detection = mp_face_detection.FaceDetection(min_detection_confidence=0.5)
+face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5)
 pose_detection = mp_pose.Pose(min_detection_confidence=0.5)
+hands_detection = mp_hands.Hands(min_detection_confidence=0.5)
 
 # EasyOCR 초기화 (한국어, 영어)
 reader = easyocr.Reader(['ko', 'en'], gpu=False)
 
+# Tesseract OCR도 함께 사용 (더 정확한 인식을 위해)
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    logger.warning("pytesseract를 사용할 수 없습니다. EasyOCR만 사용합니다.")
+
 # 요청 모델
 class TextAnalysisRequest(BaseModel):
     text: str
-    user_context: Optional[Dict] = None  # 사용자 컨텍스트 (나이, 직업, 활동 유형 등)
+    user_context: Optional[Dict] = None
 
 class AnalysisResponse(BaseModel):
     risk_score: int
@@ -57,41 +63,67 @@ class AnalysisResponse(BaseModel):
     recommendations: List[str]
     personalized_feedback: str
     risk_level: str
+    detailed_analysis: Optional[Dict] = None
 
-# 개인정보 패턴 정의
+# 개인정보 패턴 정의 (확장됨)
 PATTERNS = {
-    'phone': r'(\d{2,3}[-.\s]?\d{4}[-.\s]?\d{4})',
+    'phone': r'(\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4})',
     'email': r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
-    'rrn': r'\d{6}[-\s]?[1-4]\d{6}',  # 주민등록번호
+    'rrn': r'\d{6}[-\s]?[1-4]\d{6}',
     'address': r'(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[\s]?[\w\s]+[시군구][\s]?[\w\s]+[동읍면리]',
+    'detailed_address': r'\d+[-]?\d*\s*(?:번지|호)',
     'school': r'[\w]+(?:초등학교|중학교|고등학교|대학교|대학|학교)',
-    'name': r'[가-힣]{2,4}(?:님|씨|학생|선생|교수)',
+    'name': r'[가-힣]{2,4}(?:님|씨|학생|선생|교수|군|양)',
     'card': r'\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}',
     'account': r'\d{3,6}[-\s]?\d{2,6}[-\s]?\d{6,}',
-    'workplace': r'[\w]+(?:회사|기업|병원|은행|대학|공사|그룹)',
+    'workplace': r'[\w]+(?:회사|기업|병원|은행|대학|공사|그룹|연구소|재단)',
     'birth_date': r'(\d{4})[년\.\-/](\d{1,2})[월\.\-/](\d{1,2})[일]?',
     'age': r'(\d{1,2})[세살]|나이\s*(\d{1,2})',
+    'car_number': r'\d{2,3}[가-힣]\d{4}',
+    'passport': r'[A-Z]\d{8}',
+    'driver_license': r'(?:서울|부산|대구|인천|광주|대전|울산|경기|강원|충북|충남|전북|전남|경북|경남|제주)[-\s]?\d{2}[-\s]?\d{6}[-\s]?\d{2}',
+    'sns_id': r'@[a-zA-Z0-9_]{3,}',
+    'ip_address': r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
+    'medical_info': r'(?:진단서|처방전|병명|질환|치료|환자|복용|투약)',
+    'financial_info': r'(?:연봉|월급|급여|소득|자산|대출)',
+    'id_card_keywords': r'(?:주민등록증|운전면허증|여권|신분증|등록증)',
+    'pharmacy_keywords': r'(?:약국|조제|처방|복용|투약|용법|용량|mg|정)',
 }
 
-# 위험도 가중치
+# 위험도 가중치 (확장됨)
 RISK_WEIGHTS = {
     'phone': 25,
     'email': 15,
-    'rrn': 40,
+    'rrn': 45,
     'address': 20,
-    'school': 10,
+    'detailed_address': 30,
+    'school': 12,
     'name': 10,
-    'card': 35,
-    'account': 30,
-    'face': 15,
+    'card': 40,
+    'account': 35,
+    'face': 18,
+    'face_clear': 25,
     'body': 10,
+    'hands': 8,
     'text_in_image': 5,
     'workplace': 15,
     'birth_date': 25,
     'age': 10,
+    'car_number': 20,
+    'passport': 40,
+    'driver_license': 35,
+    'sns_id': 12,
+    'ip_address': 15,
+    'medical_info': 30,
+    'financial_info': 25,
+    'metadata': 10,
+    'location_exif': 25,
+    'background_info': 15,
+    'id_card': 45,
+    'pharmacy_bag': 35,
 }
 
-# 조합 위험 패턴 정의
+# 조합 위험 패턴
 COMBINATION_RISKS = [
     {
         'name': '신원 특정 위험',
@@ -116,22 +148,208 @@ COMBINATION_RISKS = [
     },
     {
         'name': '개인정보 도용 위험',
-        'pattern': ['name', 'rrn', 'phone'],
+        'pattern': ['name', 'rrn', 'phone', 'birth_date'],
         'min_count': 2,
         'risk_multiplier': 3.0,
         'description': '주민등록번호와 개인정보 조합으로 신분 도용이 가능합니다'
     },
     {
         'name': '스토킹/괴롭힘 위험',
-        'pattern': ['name', 'address', 'school', 'workplace'],
+        'pattern': ['name', 'address', 'school', 'workplace', 'face'],
         'min_count': 2,
         'risk_multiplier': 1.8,
         'description': '개인 활동 장소 조합으로 스토킹이나 괴롭힘에 노출될 수 있습니다'
-    }
+    },
+    {
+        'name': '위치 추적 위험',
+        'pattern': ['location_exif', 'address', 'face', 'background_info'],
+        'min_count': 2,
+        'risk_multiplier': 2.2,
+        'description': '위치 정보와 개인 식별 정보로 실시간 추적이 가능합니다'
+    },
 ]
 
+def preprocess_for_ocr(image: np.ndarray) -> List[np.ndarray]:
+    """OCR 정확도 향상을 위한 다양한 전처리"""
+    processed_images = []
+    
+    # 1. 원본
+    processed_images.append(image)
+    
+    # 2. 그레이스케일 + 이진화
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    processed_images.append(cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR))
+    
+    # 3. 적응형 이진화
+    adaptive = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                     cv2.THRESH_BINARY, 11, 2)
+    processed_images.append(cv2.cvtColor(adaptive, cv2.COLOR_GRAY2BGR))
+    
+    # 4. 노이즈 제거 + 이진화
+    denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
+    _, binary_denoised = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    processed_images.append(cv2.cvtColor(binary_denoised, cv2.COLOR_GRAY2BGR))
+    
+    # 5. 대비 향상 (CLAHE)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    enhanced = clahe.apply(gray)
+    processed_images.append(cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR))
+    
+    return processed_images
+
+def extract_text_enhanced(image_bytes: bytes) -> str:
+    """향상된 텍스트 추출 (다중 전처리 + 다중 OCR 엔진)"""
+    try:
+        # 이미지 디코딩
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        all_texts = []
+        
+        # 다양한 전처리 적용
+        processed_images = preprocess_for_ocr(image)
+        
+        # 각 전처리된 이미지에서 OCR 수행
+        for proc_img in processed_images:
+            # EasyOCR
+            _, encoded_img = cv2.imencode('.jpg', proc_img)
+            ocr_results = reader.readtext(encoded_img.tobytes())
+            texts = [text[1] for text in ocr_results]
+            all_texts.extend(texts)
+            
+            # Tesseract OCR (사용 가능한 경우)
+            if TESSERACT_AVAILABLE:
+                try:
+                    # 한글 + 영어 인식
+                    custom_config = r'--oem 3 --psm 6 -l kor+eng'
+                    tess_text = pytesseract.image_to_string(proc_img, config=custom_config)
+                    if tess_text.strip():
+                        all_texts.append(tess_text)
+                except Exception as e:
+                    logger.debug(f"Tesseract OCR 오류: {str(e)}")
+        
+        # 중복 제거 및 결합
+        unique_texts = list(set(all_texts))
+        combined_text = ' '.join(unique_texts)
+        
+        return combined_text
+    
+    except Exception as e:
+        logger.error(f"텍스트 추출 오류: {str(e)}")
+        return ""
+
+def detect_id_card(image: np.ndarray, extracted_text: str) -> Dict:
+    """신분증 감지 (주민등록증, 운전면허증, 여권 등)"""
+    id_card_info = {
+        'detected': False,
+        'type': None,
+        'confidence': 0,
+        'risk': 0,
+        'features_found': []
+    }
+    
+    # 키워드 매칭
+    id_keywords = {
+        '주민등록증': ['주민등록증', '민소회', '주민', '발급'],
+        '운전면허증': ['운전면허증', '면허', '운전', '도로교통'],
+        '여권': ['PASSPORT', 'REPUBLIC OF KOREA', '여권', 'passport'],
+        '외국인등록증': ['외국인등록증', '외국인', 'Alien'],
+    }
+    
+    for card_type, keywords in id_keywords.items():
+        matches = sum(1 for keyword in keywords if keyword in extracted_text)
+        if matches >= 1:
+            id_card_info['detected'] = True
+            id_card_info['type'] = card_type
+            id_card_info['confidence'] = min(matches / len(keywords), 1.0)
+            id_card_info['features_found'].append(card_type)
+    
+    # 주민등록번호 패턴 추가 확인
+    rrn_pattern = r'\d{6}[-\s]?[1-4]\d{6}'
+    if re.search(rrn_pattern, extracted_text):
+        id_card_info['detected'] = True
+        id_card_info['features_found'].append('주민등록번호')
+        id_card_info['confidence'] = max(id_card_info['confidence'], 0.9)
+    
+    # 카드 형태 감지 (비율 분석)
+    h, w = image.shape[:2]
+    aspect_ratio = w / h
+    
+    # 신분증은 대략 1.5:1 ~ 1.7:1 비율
+    if 1.4 <= aspect_ratio <= 1.8:
+        id_card_info['features_found'].append('카드 형태')
+        id_card_info['confidence'] += 0.2
+    
+    # 얼굴 감지 (신분증에는 보통 증명사진이 있음)
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    face_results = face_detection.process(rgb_image)
+    if face_results.detections:
+        id_card_info['features_found'].append('증명사진')
+        id_card_info['confidence'] += 0.3
+    
+    if id_card_info['detected']:
+        id_card_info['risk'] = RISK_WEIGHTS['id_card']
+        id_card_info['confidence'] = min(id_card_info['confidence'], 1.0)
+    
+    return id_card_info
+
+def detect_pharmacy_bag(image: np.ndarray, extracted_text: str) -> Dict:
+    """약봉투/처방전 감지"""
+    pharmacy_info = {
+        'detected': False,
+        'type': None,
+        'risk': 0,
+        'features_found': []
+    }
+    
+    # 약국 관련 키워드
+    pharmacy_keywords = [
+        '약국', '조제', '처방', '복용', '투약', '용법', '용량',
+        'pharmacy', '정', '캡슐', '알', 'mg', 'ml',
+        '환자명', '처방의', '조제일', '약사'
+    ]
+    
+    keyword_matches = sum(1 for keyword in pharmacy_keywords if keyword in extracted_text)
+    
+    if keyword_matches >= 2:
+        pharmacy_info['detected'] = True
+        pharmacy_info['type'] = '약봉투/처방전'
+        pharmacy_info['risk'] = RISK_WEIGHTS['pharmacy_bag']
+        pharmacy_info['features_found'].append(f'{keyword_matches}개 약국 키워드')
+    
+    # 날짜 패턴 (조제일자)
+    date_patterns = [
+        r'\d{4}[년\.\-/]\d{1,2}[월\.\-/]\d{1,2}',
+        r'\d{4}-\d{2}-\d{2}',
+        r'\d{2}/\d{2}/\d{4}'
+    ]
+    
+    for pattern in date_patterns:
+        if re.search(pattern, extracted_text):
+            pharmacy_info['features_found'].append('조제 날짜')
+            break
+    
+    # 용량 표시 (mg, ml 등)
+    dosage_pattern = r'\d+\s*(mg|ml|정|캡슐|알|회)'
+    if re.search(dosage_pattern, extracted_text):
+        pharmacy_info['features_found'].append('약물 용량 정보')
+    
+    # 이름 패턴
+    name_pattern = r'[가-힣]{2,4}(?:님|씨|환자)?'
+    if re.search(name_pattern, extracted_text) and pharmacy_info['detected']:
+        pharmacy_info['features_found'].append('환자명')
+    
+    # 충분한 특징이 발견되면 확정
+    if len(pharmacy_info['features_found']) >= 2:
+        pharmacy_info['detected'] = True
+        if not pharmacy_info['risk']:
+            pharmacy_info['risk'] = RISK_WEIGHTS['pharmacy_bag']
+    
+    return pharmacy_info
+
 def analyze_text(text: str) -> Dict:
-    """텍스트 분석 함수"""
+    """텍스트 분석 함수 (확장됨)"""
     detected_items = []
     total_risk = 0
     
@@ -142,17 +360,408 @@ def analyze_text(text: str) -> Dict:
             risk = RISK_WEIGHTS.get(pattern_name, 10) * min(count, 3)
             total_risk += risk
             
+            # 예제를 마스킹 처리
+            masked_examples = []
+            for match in matches[:2]:
+                if isinstance(match, tuple):
+                    match = ''.join(match)
+                if pattern_name in ['phone', 'email', 'card', 'account', 'rrn']:
+                    masked = match[:3] + '*' * (len(match) - 6) + match[-3:]
+                else:
+                    masked = match[:2] + '*' * (len(match) - 2)
+                masked_examples.append(masked)
+            
             detected_items.append({
                 'type': pattern_name,
                 'count': count,
                 'risk_contribution': risk,
-                'examples': matches[:2] if len(matches) > 0 else []
+                'examples': masked_examples
             })
     
     return {
         'detected_items': detected_items,
         'total_risk': min(total_risk, 100)
     }
+
+def detect_face_quality(image: np.ndarray, face_locations: list) -> Dict:
+    """얼굴 선명도 및 크기 분석"""
+    quality_info = {
+        'clear_faces': 0,
+        'large_faces': 0,
+        'total_faces': len(face_locations)
+    }
+    
+    if not face_locations:
+        return quality_info
+    
+    h, w = image.shape[:2]
+    
+    for detection in face_locations:
+        bbox = detection.location_data.relative_bounding_box
+        x = int(bbox.xmin * w)
+        y = int(bbox.ymin * h)
+        width = int(bbox.width * w)
+        height = int(bbox.height * h)
+        
+        # 얼굴 영역 추출
+        face_roi = image[max(0, y):min(h, y+height), max(0, x):min(w, x+width)]
+        
+        if face_roi.size > 0:
+            # 선명도 측정 (라플라시안 분산)
+            gray = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
+            laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+            
+            if laplacian_var > 100:  # 선명한 얼굴
+                quality_info['clear_faces'] += 1
+            
+            # 얼굴 크기 비율 (이미지 대비)
+            face_ratio = (width * height) / (w * h)
+            if face_ratio > 0.05:  # 이미지의 5% 이상
+                quality_info['large_faces'] += 1
+    
+    return quality_info
+
+def extract_exif_data(image_bytes: bytes) -> Dict:
+    """EXIF 메타데이터 추출"""
+    from PIL import Image
+    from PIL.ExifTags import TAGS, GPSTAGS
+    import io
+    
+    metadata = {
+        'has_gps': False,
+        'has_datetime': False,
+        'camera_info': False,
+        'location_risk': 0
+    }
+    
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        exif_data = img._getexif()
+        
+        if exif_data:
+            for tag_id, value in exif_data.items():
+                tag = TAGS.get(tag_id, tag_id)
+                
+                if tag == 'GPSInfo':
+                    metadata['has_gps'] = True
+                    metadata['location_risk'] = RISK_WEIGHTS['location_exif']
+                
+                if tag in ['DateTime', 'DateTimeOriginal', 'DateTimeDigitized']:
+                    metadata['has_datetime'] = True
+                
+                if tag in ['Make', 'Model']:
+                    metadata['camera_info'] = True
+    
+    except Exception as e:
+        logger.debug(f"EXIF 데이터 추출 실패: {str(e)}")
+    
+    return metadata
+
+def detect_background_info(image: np.ndarray, ocr_results: list) -> Dict:
+    """배경 정보 분석 (간판, 표지판 등)"""
+    background_risks = {
+        'detected': False,
+        'types': [],
+        'risk': 0
+    }
+    
+    # OCR 결과에서 배경 정보 키워드 검색
+    background_keywords = [
+        '간판', '병원', '학교', '은행', '마트', '아파트', 
+        '빌딩', '역', '정류장', 'Hospital', 'School', 'Bank'
+    ]
+    
+    extracted_text = ' '.join([text[1] for text in ocr_results])
+    
+    for keyword in background_keywords:
+        if keyword in extracted_text:
+            background_risks['detected'] = True
+            background_risks['types'].append(keyword)
+    
+    if background_risks['detected']:
+        background_risks['risk'] = RISK_WEIGHTS['background_info']
+    
+    return background_risks
+
+def analyze_image_composition(image: np.ndarray) -> Dict:
+    """이미지 구도 분석"""
+    composition = {
+        'has_people': False,
+        'crowd_level': 'none',
+        'indoor_outdoor': 'unknown',
+        'brightness': 0
+    }
+    
+    # 밝기 분석
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    composition['brightness'] = np.mean(gray)
+    
+    # 색상 분석으로 실내/외 추정
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    avg_saturation = np.mean(hsv[:, :, 1])
+    
+    if avg_saturation > 80:
+        composition['indoor_outdoor'] = 'outdoor'
+    else:
+        composition['indoor_outdoor'] = 'indoor'
+    
+    return composition
+
+def analyze_image(image_bytes: bytes) -> Dict:
+    """이미지 분석 함수 (대폭 확장됨)"""
+    detected_items = []
+    total_risk = 0
+    detailed_analysis = {}
+    
+    try:
+        # 이미지 디코딩
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # 1. EXIF 메타데이터 분석
+        metadata = extract_exif_data(image_bytes)
+        if metadata['has_gps']:
+            total_risk += metadata['location_risk']
+            detected_items.append({
+                'type': 'location_exif',
+                'count': 1,
+                'risk_contribution': metadata['location_risk'],
+                'description': 'GPS 위치 정보가 이미지에 포함되어 있습니다'
+            })
+        
+        if metadata['has_datetime'] or metadata['camera_info']:
+            risk = RISK_WEIGHTS['metadata']
+            total_risk += risk
+            detected_items.append({
+                'type': 'metadata',
+                'count': 1,
+                'risk_contribution': risk,
+                'description': '카메라 정보 및 촬영 시간이 포함되어 있습니다'
+            })
+        
+        detailed_analysis['metadata'] = metadata
+        
+        # 2. 얼굴 탐지 (개선)
+        face_results = face_detection.process(rgb_image)
+        if face_results.detections:
+            face_quality = detect_face_quality(image, face_results.detections)
+            face_count = face_quality['total_faces']
+            
+            # 선명한 얼굴에 대한 높은 위험도
+            if face_quality['clear_faces'] > 0:
+                risk = RISK_WEIGHTS['face_clear'] * min(face_quality['clear_faces'], 3)
+                total_risk += risk
+                detected_items.append({
+                    'type': 'face_clear',
+                    'count': face_quality['clear_faces'],
+                    'risk_contribution': risk,
+                    'description': f'{face_quality["clear_faces"]}개의 선명한 얼굴이 감지되었습니다'
+                })
+            
+            # 일반 얼굴 위험도
+            remaining_faces = face_count - face_quality['clear_faces']
+            if remaining_faces > 0:
+                risk = RISK_WEIGHTS['face'] * min(remaining_faces, 3)
+                total_risk += risk
+                detected_items.append({
+                    'type': 'face',
+                    'count': remaining_faces,
+                    'risk_contribution': risk,
+                    'description': f'{remaining_faces}개의 얼굴이 감지되었습니다'
+                })
+            
+            detailed_analysis['face_quality'] = face_quality
+        
+        # 3. 얼굴 랜드마크 분석 (정밀도 향상)
+        face_mesh_results = face_mesh.process(rgb_image)
+        if face_mesh_results.multi_face_landmarks:
+            detailed_analysis['face_landmarks_detected'] = len(face_mesh_results.multi_face_landmarks)
+        
+        # 4. 신체 탐지
+        pose_results = pose_detection.process(rgb_image)
+        if pose_results.pose_landmarks:
+            risk = RISK_WEIGHTS['body']
+            total_risk += risk
+            detected_items.append({
+                'type': 'body',
+                'count': 1,
+                'risk_contribution': risk,
+                'description': '신체 부위가 명확하게 감지되었습니다'
+            })
+            detailed_analysis['body_detected'] = True
+        
+        # 5. 손 탐지 (새로 추가)
+        hands_results = hands_detection.process(rgb_image)
+        if hands_results.multi_hand_landmarks:
+            hand_count = len(hands_results.multi_hand_landmarks)
+            risk = RISK_WEIGHTS['hands'] * min(hand_count, 2)
+            total_risk += risk
+            detected_items.append({
+                'type': 'hands',
+                'count': hand_count,
+                'risk_contribution': risk,
+                'description': f'{hand_count}개의 손이 감지되었습니다 (지문 노출 가능)'
+            })
+        
+        # 6. OCR을 통한 텍스트 추출 (향상된 방식)
+        extracted_text = extract_text_enhanced(image_bytes)
+        
+        # 7. 신분증 감지
+        id_card_result = detect_id_card(image, extracted_text)
+        if id_card_result['detected']:
+            total_risk += id_card_result['risk']
+            detected_items.append({
+                'type': 'id_card',
+                'count': 1,
+                'risk_contribution': id_card_result['risk'],
+                'description': f"{id_card_result['type'] or '신분증'}이 감지되었습니다 (신뢰도: {id_card_result['confidence']:.0%})",
+                'features': id_card_result['features_found']
+            })
+            detailed_analysis['id_card'] = id_card_result
+        
+        # 8. 약봉투/처방전 감지
+        pharmacy_result = detect_pharmacy_bag(image, extracted_text)
+        if pharmacy_result['detected']:
+            total_risk += pharmacy_result['risk']
+            detected_items.append({
+                'type': 'pharmacy_bag',
+                'count': 1,
+                'risk_contribution': pharmacy_result['risk'],
+                'description': f"{pharmacy_result['type']}이 감지되었습니다 (민감한 의료정보 포함)",
+                'features': pharmacy_result['features_found']
+            })
+            detailed_analysis['pharmacy'] = pharmacy_result
+        
+        # 9. 추출된 텍스트에서 개인정보 패턴 검색
+        
+        if extracted_text:
+            # 추출된 텍스트에서 개인정보 패턴 검색
+            text_analysis = analyze_text(extracted_text)
+            if text_analysis['detected_items']:
+                for item in text_analysis['detected_items']:
+                    item['source'] = 'image_text'
+                    detected_items.append(item)
+                    total_risk += item['risk_contribution']
+            
+            # 이미지에서 텍스트가 발견된 것 자체도 위험 요소
+            risk = RISK_WEIGHTS['text_in_image']
+            total_risk += risk
+            
+            # 추출된 텍스트 샘플 저장
+            text_sample = extracted_text[:100] + '...' if len(extracted_text) > 100 else extracted_text
+            
+            detected_items.append({
+                'type': 'text_in_image',
+                'count': len(extracted_text.split()),
+                'risk_contribution': risk,
+                'description': f'이미지에서 텍스트가 추출되었습니다',
+                'extracted_sample': text_sample
+            })
+            
+            detailed_analysis['extracted_text'] = {
+                'full_text': extracted_text,
+                'length': len(extracted_text)
+            }
+        
+        # 10. 배경 정보 분석 (OCR 결과 필요)
+        # OCR 결과를 다시 생성 (배경 분석용)
+        ocr_results = reader.readtext(image_bytes)
+        
+        # 7. 배경 정보 분석
+        background_info = detect_background_info(image, ocr_results)
+        if background_info['detected']:
+            total_risk += background_info['risk']
+            detected_items.append({
+                'type': 'background_info',
+                'count': len(background_info['types']),
+                'risk_contribution': background_info['risk'],
+                'description': f'배경에서 위치 특정 가능한 정보 발견: {", ".join(background_info["types"][:3])}'
+            })
+        
+        detailed_analysis['background_info'] = background_info
+        
+        # 8. 이미지 구도 분석
+        composition = analyze_image_composition(image)
+        detailed_analysis['composition'] = composition
+        
+        # 9. 이미지 품질 및 해상도 분석
+        h, w = image.shape[:2]
+        detailed_analysis['resolution'] = {'width': w, 'height': h}
+        detailed_analysis['high_resolution'] = w > 1920 or h > 1080
+        
+        if detailed_analysis['high_resolution']:
+            total_risk += 5  # 고해상도는 더 많은 정보 노출
+    
+    except Exception as e:
+        logger.error(f"이미지 분석 중 오류 발생: {str(e)}")
+        return {'detected_items': [], 'total_risk': 0, 'detailed_analysis': {}}
+    
+    return {
+        'detected_items': detected_items,
+        'total_risk': min(total_risk, 100),
+        'detailed_analysis': detailed_analysis
+    }
+
+def generate_personalized_feedback(detected_items: List[Dict], 
+                                   combination_risks: List[Dict],
+                                   user_context: Optional[Dict] = None) -> str:
+    """규칙 기반 개인 맞춤형 피드백 생성"""
+    
+    # 위험 유형별 카운트
+    risk_types = Counter([item['type'] for item in detected_items])
+    total_risk = sum([item['risk_contribution'] for item in detected_items])
+    
+    feedback_parts = []
+    
+    # 1. 전반적인 위험도 평가
+    if total_risk >= 70:
+        feedback_parts.append("⚠️ 매우 위험한 수준의 개인정보가 노출되어 있습니다.")
+    elif total_risk >= 50:
+        feedback_parts.append("⚡ 주의가 필요한 수준의 개인정보가 감지되었습니다.")
+    elif total_risk >= 30:
+        feedback_parts.append("💡 일부 개인정보가 노출되어 있어 주의가 필요합니다.")
+    else:
+        feedback_parts.append("✅ 개인정보 노출 위험이 비교적 낮습니다.")
+    
+    # 2. 주요 위험 요소 강조
+    high_risk_items = [
+        ('rrn', '주민등록번호'),
+        ('card', '카드번호'),
+        ('account', '계좌번호'),
+        ('passport', '여권번호'),
+        ('face_clear', '선명한 얼굴'),
+        ('location_exif', 'GPS 위치'),
+    ]
+    
+    critical_items = [name for type_key, name in high_risk_items if type_key in risk_types]
+    if critical_items:
+        feedback_parts.append(f"특히 {', '.join(critical_items[:3])} 정보가 노출되어 있어 즉시 조치가 필요합니다.")
+    
+    # 3. 조합 위험 강조
+    if combination_risks:
+        high_severity = [r for r in combination_risks if r.get('severity') == 'high']
+        if high_severity:
+            feedback_parts.append(f"{high_severity[0]['description']}")
+    
+    # 4. 사용자 컨텍스트 기반 조언
+    if user_context:
+        age_group = user_context.get('age_group', 'general')
+        
+        if age_group == 'youth' or age_group == 'teenager':
+            feedback_parts.append("청소년의 경우 특히 개인정보 노출에 주의해야 합니다. 보호자와 상의하여 공유하세요.")
+        elif age_group == 'senior':
+            feedback_parts.append("개인정보는 한 번 유출되면 회수가 어렵습니다. 민감한 정보는 삭제하고 공유하세요.")
+    
+    # 5. 구체적인 개선 방법 제안
+    if 'face' in risk_types or 'face_clear' in risk_types:
+        feedback_parts.append("얼굴은 모자이크나 스티커로 가려주세요.")
+    
+    if any(key in risk_types for key in ['phone', 'email', 'address']):
+        feedback_parts.append("연락처와 주소 정보는 부분적으로 가리거나 삭제하세요.")
+    
+    # 피드백 조합
+    return " ".join(feedback_parts)
 
 def analyze_combination_risks(detected_items: List[Dict]) -> List[Dict]:
     """조합 위험 분석"""
@@ -176,129 +785,6 @@ def analyze_combination_risks(detected_items: List[Dict]) -> List[Dict]:
     
     return combination_risks
 
-def analyze_image(image_bytes: bytes) -> Dict:
-    """이미지 분석 함수"""
-    detected_items = []
-    total_risk = 0
-    
-    try:
-        # 이미지 디코딩
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        # 1. 얼굴 탐지
-        face_results = face_detection.process(rgb_image)
-        if face_results.detections:
-            face_count = len(face_results.detections)
-            risk = RISK_WEIGHTS['face'] * min(face_count, 3)
-            total_risk += risk
-            detected_items.append({
-                'type': 'face',
-                'count': face_count,
-                'risk_contribution': risk,
-                'description': f'{face_count}개의 얼굴이 감지되었습니다'
-            })
-        
-        # 2. 신체 탐지
-        pose_results = pose_detection.process(rgb_image)
-        if pose_results.pose_landmarks:
-            total_risk += RISK_WEIGHTS['body']
-            detected_items.append({
-                'type': 'body',
-                'count': 1,
-                'risk_contribution': RISK_WEIGHTS['body'],
-                'description': '신체 부위가 감지되었습니다'
-            })
-        
-        # 3. OCR을 통한 텍스트 추출
-        ocr_results = reader.readtext(image_bytes)
-        extracted_text = ' '.join([text[1] for text in ocr_results])
-        
-        if extracted_text:
-            # 추출된 텍스트에서 개인정보 패턴 검색
-            text_analysis = analyze_text(extracted_text)
-            if text_analysis['detected_items']:
-                for item in text_analysis['detected_items']:
-                    item['source'] = 'image_text'
-                    detected_items.extend(text_analysis['detected_items'])
-                    total_risk += item['risk_contribution']
-            
-            # 이미지에서 텍스트가 발견된 것 자체도 위험 요소
-            total_risk += RISK_WEIGHTS['text_in_image']
-            detected_items.append({
-                'type': 'text_in_image',
-                'count': len(ocr_results),
-                'risk_contribution': RISK_WEIGHTS['text_in_image'],
-                'description': f'이미지에서 {len(ocr_results)}개의 텍스트 영역이 감지되었습니다'
-            })
-    
-    except Exception as e:
-        logger.error(f"이미지 분석 중 오류 발생: {str(e)}")
-        return {'detected_items': [], 'total_risk': 0}
-    
-    return {
-        'detected_items': detected_items,
-        'total_risk': min(total_risk, 100)
-    }
-
-async def generate_personalized_feedback(detected_items: List[Dict], 
-                                       combination_risks: List[Dict],
-                                       user_context: Optional[Dict] = None) -> str:
-    """AI 기반 개인 맞춤형 피드백 생성"""
-    try:
-        # 사용자 컨텍스트 기본값 설정
-        if not user_context:
-            user_context = {'age_group': 'general', 'activity_type': 'general'}
-        
-        # 탐지된 항목 요약
-        detected_summary = ", ".join([f"{item['type']} ({item['count']}개)" 
-                                    for item in detected_items])
-        
-        # 조합 위험 요약
-        combo_summary = ", ".join([risk['name'] for risk in combination_risks])
-        
-        # GPT 프롬프트 구성
-        prompt = f"""
-개인정보 보호 전문가로서 다음 분석 결과를 바탕으로 개인 맞춤형 피드백을 작성해주세요.
-
-분석 결과:
-- 탐지된 개인정보: {detected_summary if detected_summary else '없음'}
-- 조합 위험: {combo_summary if combo_summary else '없음'}
-- 사용자 정보: {user_context}
-
-피드백 요구사항:
-1. 사용자의 상황에 맞는 구체적이고 실용적인 조언
-2. 왜 이런 위험이 발생하는지 쉽게 설명
-3. 개선 방법을 단계별로 제시
-4. 친근하고 이해하기 쉬운 톤
-5. 200자 내외로 간결하게
-
-피드백:
-"""
-
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "당신은 개인정보 보호 전문가입니다. 사용자에게 친근하고 실용적인 조언을 제공합니다."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=300,
-            temperature=0.7
-        )
-        
-        return response.choices[0].message.content.strip()
-    
-    except Exception as e:
-        logger.error(f"AI 피드백 생성 오류: {str(e)}")
-        # 기본 피드백 반환
-        if combination_risks:
-            return "여러 개인정보가 조합되어 위험도가 높습니다. 필요한 정보만 선별적으로 공개하고, 민감한 정보는 삭제하는 것을 권장합니다."
-        elif detected_items:
-            return "일부 개인정보가 노출되어 있습니다. 개인 식별이 가능한 정보는 가리거나 삭제하여 안전하게 공유하세요."
-        else:
-            return "개인정보 노출 위험이 낮습니다. 하지만 항상 주의하여 정보를 공유하세요."
-
 def get_risk_level(score: int) -> str:
     """위험도 레벨 판정"""
     if score >= 70:
@@ -313,30 +799,46 @@ def get_risk_level(score: int) -> str:
         return "안전"
 
 def generate_recommendations(detected_items: List[Dict], combination_risks: List[Dict]) -> List[str]:
-    """개선 권고사항 생성 (조합 위험 포함)"""
+    """개선 권고사항 생성"""
     recommendations = []
     
     type_messages = {
-        'phone': '전화번호가 노출되어 있습니다. 부분적으로 가리거나 삭제를 권장합니다.',
+        'phone': '전화번호가 노출되어 있습니다. 뒷자리를 가리거나 삭제를 권장합니다.',
         'email': '이메일 주소가 노출되어 있습니다. 스팸 메일의 위험이 있으니 주의하세요.',
-        'rrn': '주민등록번호는 절대 공개하지 마세요. 즉시 삭제를 권장합니다.',
+        'rrn': '⚠️ 주민등록번호는 절대 공개하지 마세요. 즉시 삭제를 권장합니다.',
         'address': '상세 주소가 노출되면 위치가 특정될 수 있습니다. 동 단위까지만 공개하세요.',
+        'detailed_address': '번지수와 호수가 노출되어 있습니다. 정확한 위치 특정이 가능하므로 삭제하세요.',
         'school': '학교명이 노출되어 있습니다. 신원 파악의 단서가 될 수 있습니다.',
         'name': '실명이 노출되어 있습니다. 닉네임 사용을 권장합니다.',
-        'card': '카드번호가 노출되어 있습니다. 금융 사기의 위험이 있으니 즉시 삭제하세요.',
-        'account': '계좌번호가 노출되어 있습니다. 금융 정보는 절대 공개하지 마세요.',
+        'card': '⚠️ 카드번호가 노출되어 있습니다. 금융 사기의 위험이 있으니 즉시 삭제하세요.',
+        'account': '⚠️ 계좌번호가 노출되어 있습니다. 금융 정보는 절대 공개하지 마세요.',
         'face': '얼굴이 노출되어 있습니다. 모자이크 처리나 스티커로 가리는 것을 권장합니다.',
+        'face_clear': '⚠️ 선명한 얼굴이 노출되어 얼굴 인식이 가능합니다. 반드시 가려주세요.',
         'body': '신체가 노출되어 있습니다. 개인 식별이 가능할 수 있으니 주의하세요.',
+        'hands': '손이 노출되어 있습니다. 지문이나 특징적인 부분은 가려주세요.',
         'text_in_image': '이미지에 텍스트가 포함되어 있습니다. 민감한 정보가 없는지 확인하세요.',
         'workplace': '직장 정보가 노출되어 있습니다. 개인 신원 파악에 활용될 수 있습니다.',
         'birth_date': '생년월일이 노출되어 있습니다. 신원 도용에 악용될 수 있습니다.',
-        'age': '나이 정보가 노출되어 있습니다. 다른 정보와 조합하여 신원 추정이 가능합니다.'
+        'age': '나이 정보가 노출되어 있습니다. 다른 정보와 조합하여 신원 추정이 가능합니다.',
+        'car_number': '차량 번호가 노출되어 있습니다. 개인 추적에 악용될 수 있으니 가려주세요.',
+        'passport': '⚠️ 여권 번호가 노출되어 있습니다. 즉시 삭제하세요.',
+        'driver_license': '⚠️ 운전면허 번호가 노출되어 있습니다. 신분증 정보는 절대 공개하지 마세요.',
+        'sns_id': 'SNS 계정이 노출되어 있습니다. 타 플랫폼 추적이 가능하니 주의하세요.',
+        'ip_address': 'IP 주소가 노출되어 있습니다. 위치 추적에 악용될 수 있습니다.',
+        'medical_info': '⚠️ 의료 정보가 노출되어 있습니다. 매우 민감한 정보이므로 삭제하세요.',
+        'financial_info': '금융 정보가 노출되어 있습니다. 소득 정보는 공개하지 마세요.',
+        'metadata': '이미지 메타데이터가 포함되어 있습니다. 촬영 기기와 시간 정보를 삭제하세요.',
+        'location_exif': '⚠️ GPS 위치 정보가 이미지에 포함되어 있습니다. 정확한 위치가 노출됩니다. 메타데이터를 제거하세요.',
+        'background_info': '배경에서 위치를 특정할 수 있는 정보가 발견되었습니다. 간판이나 표지판을 가려주세요.',
+        'id_card': '⚠️ 신분증이 감지되었습니다. 주민등록증, 면허증 등 신분증은 절대 공개하지 마세요.',
+        'pharmacy_bag': '⚠️ 약봉투/처방전이 감지되었습니다. 환자명, 병명, 약물 정보는 민감한 의료정보입니다. 즉시 삭제하세요.',
     }
     
     # 기본 권고사항
-    for item in detected_items:
-        if item['type'] in type_messages:
-            recommendations.append(type_messages[item['type']])
+    detected_types = set([item['type'] for item in detected_items])
+    for item_type in detected_types:
+        if item_type in type_messages:
+            recommendations.append(type_messages[item_type])
     
     # 조합 위험 권고사항
     for combo_risk in combination_risks:
@@ -346,21 +848,32 @@ def generate_recommendations(detected_items: List[Dict], combination_risks: List
             recommendations.append(f"⚡ {combo_risk['description']} - 주의가 필요합니다.")
     
     # 일반 권고사항 추가
-    if len(detected_items) > 3:
-        recommendations.append('여러 개인정보가 동시에 노출되어 있습니다. 전반적인 검토가 필요합니다.')
+    if len(detected_items) > 5:
+        recommendations.append('⚠️ 다수의 개인정보가 동시에 노출되어 있습니다. 전반적인 재검토가 필요합니다.')
     
     if not recommendations:
-        recommendations.append('개인정보 노출 위험이 낮습니다. 하지만 항상 주의하세요.')
+        recommendations.append('✅ 개인정보 노출 위험이 낮습니다. 하지만 항상 주의하세요.')
     
     return recommendations
 
 @app.get("/")
 async def root():
-    return {"message": "개인정보 위험 자가 진단 서비스 API (AI 피드백 지원)"}
+    return {
+        "message": "개인정보 위험 자가 진단 서비스 API (OpenCV 기반)",
+        "version": "2.0",
+        "features": [
+            "고급 얼굴 감지 및 품질 분석",
+            "EXIF GPS 위치 정보 추출",
+            "배경 정보 분석",
+            "손 및 신체 부위 감지",
+            "확장된 개인정보 패턴 인식",
+            "조합 위험 분석"
+        ]
+    }
 
 @app.post("/analyze/text", response_model=AnalysisResponse)
 async def analyze_text_endpoint(request: TextAnalysisRequest):
-    """텍스트 분석 엔드포인트 (AI 피드백 포함)"""
+    """텍스트 분석 엔드포인트"""
     try:
         if not request.text:
             raise HTTPException(status_code=400, detail="텍스트가 비어있습니다")
@@ -375,8 +888,8 @@ async def analyze_text_endpoint(request: TextAnalysisRequest):
         recommendations = generate_recommendations(analysis['detected_items'], combination_risks)
         risk_level = get_risk_level(final_risk)
         
-        # AI 기반 개인 맞춤형 피드백 생성
-        personalized_feedback = await generate_personalized_feedback(
+        # 규칙 기반 개인 맞춤형 피드백 생성
+        personalized_feedback = generate_personalized_feedback(
             analysis['detected_items'], 
             combination_risks, 
             request.user_context
@@ -397,7 +910,7 @@ async def analyze_text_endpoint(request: TextAnalysisRequest):
 
 @app.post("/analyze/image", response_model=AnalysisResponse)
 async def analyze_image_endpoint(file: UploadFile = File(...), user_context: str = None):
-    """이미지 분석 엔드포인트 (AI 피드백 포함)"""
+    """이미지 분석 엔드포인트"""
     try:
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다")
@@ -422,8 +935,8 @@ async def analyze_image_endpoint(file: UploadFile = File(...), user_context: str
             except:
                 context_dict = {'activity_type': user_context}
         
-        # AI 기반 개인 맞춤형 피드백 생성
-        personalized_feedback = await generate_personalized_feedback(
+        # 규칙 기반 개인 맞춤형 피드백 생성
+        personalized_feedback = generate_personalized_feedback(
             analysis['detected_items'], 
             combination_risks, 
             context_dict
@@ -435,7 +948,8 @@ async def analyze_image_endpoint(file: UploadFile = File(...), user_context: str
             combination_risks=combination_risks,
             recommendations=recommendations,
             personalized_feedback=personalized_feedback,
-            risk_level=risk_level
+            risk_level=risk_level,
+            detailed_analysis=analysis.get('detailed_analysis')
         )
     
     except Exception as e:
@@ -448,10 +962,11 @@ async def analyze_combined_endpoint(
     file: Optional[UploadFile] = File(None),
     user_context: Optional[str] = None
 ):
-    """텍스트와 이미지 통합 분석 엔드포인트 (AI 피드백 포함)"""
+    """텍스트와 이미지 통합 분석 엔드포인트"""
     try:
         total_risk = 0
         all_detected_items = []
+        detailed_analysis = {}
         
         # 텍스트 분석
         if text:
@@ -465,6 +980,7 @@ async def analyze_combined_endpoint(
             image_analysis = analyze_image(contents)
             total_risk += image_analysis['total_risk']
             all_detected_items.extend(image_analysis['detected_items'])
+            detailed_analysis = image_analysis.get('detailed_analysis', {})
         
         # 조합 위험 분석
         combination_risks = analyze_combination_risks(all_detected_items)
@@ -483,8 +999,8 @@ async def analyze_combined_endpoint(
             except:
                 context_dict = {'activity_type': user_context}
         
-        # AI 기반 개인 맞춤형 피드백 생성
-        personalized_feedback = await generate_personalized_feedback(
+        # 규칙 기반 개인 맞춤형 피드백 생성
+        personalized_feedback = generate_personalized_feedback(
             all_detected_items, 
             combination_risks, 
             context_dict
@@ -496,12 +1012,26 @@ async def analyze_combined_endpoint(
             combination_risks=combination_risks,
             recommendations=recommendations,
             personalized_feedback=personalized_feedback,
-            risk_level=risk_level
+            risk_level=risk_level,
+            detailed_analysis=detailed_analysis
         )
     
     except Exception as e:
         logger.error(f"통합 분석 오류: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health_check():
+    """헬스 체크 엔드포인트"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "services": {
+            "face_detection": "active",
+            "ocr": "active",
+            "text_analysis": "active"
+        }
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
