@@ -9,4 +9,4 @@ numpy==1.24.3
 Pillow==10.1.0
 torch==2.1.0
 torchvision==0.16.0
-pytesseract==0.3.10  # 🚨 FIX: Tesseract 사용 시 필요
+pytesseract==0.3.10

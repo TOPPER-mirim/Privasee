@@ -951,6 +951,7 @@ async def analyze_text_endpoint(request: TextAnalysisRequest):
 async def analyze_image_endpoint(file: UploadFile = File(...), user_context: str = None):
     """이미지 분석 엔드포인트"""
     try:
+    
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다")
         
