@@ -113,6 +113,12 @@
             transform: translateY(-1px);
         }
 
+        .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* 업로드 페이지 */
         .upload-page {
             display: none;
@@ -188,6 +194,46 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .share-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* 로딩 스피너 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007AFF;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
         }
 
         /* 팝업 */
@@ -210,6 +256,8 @@
             padding: 25px;
             margin: 20px;
             max-width: 320px;
+            max-height: 600px;
+            overflow-y: auto;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
             animation: popupSlideUp 0.3s ease;
         }
@@ -330,6 +378,7 @@
         .item-type {
             font-weight: 600;
             color: #333;
+            font-size: 15px;
         }
 
         .item-risk {
@@ -344,6 +393,13 @@
         .item-description {
             color: #666;
             font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .item-source {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
         }
 
         .recommendation-item {
@@ -365,6 +421,34 @@
             color: #333;
             font-size: 14px;
             line-height: 1.4;
+        }
+
+        .combination-risks {
+            margin-top: 15px;
+        }
+
+        .combo-risk-item {
+            background: #FFF4E0;
+            border-left: 4px solid #FF9500;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .combo-risk-item.high {
+            background: #FFE6E6;
+            border-left-color: #FF3B30;
+        }
+
+        .combo-risk-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .combo-risk-desc {
+            font-size: 13px;
+            color: #666;
         }
 
         .file-input {
@@ -394,6 +478,18 @@
             color: #666;
             font-size: 14px;
         }
+
+        /* 에러 메시지 */
+        .error-message {
+            background: #FFE6E6;
+            border: 1px solid #FF3B30;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            color: #DC143C;
+            font-size: 14px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -413,6 +509,14 @@
 
         <!-- 메인 콘텐츠 -->
         <div class="main-content">
+            <!-- 로딩 오버레이 -->
+            <div class="loading-overlay" id="loading-overlay">
+                <div style="text-align: center;">
+                    <div class="spinner"></div>
+                    <div class="loading-text">AI가 개인정보를 분석중입니다...</div>
+                </div>
+            </div>
+
             <!-- SNS 메인 페이지 -->
             <div class="sns-main" id="main-page">
                 <div class="welcome-message">
@@ -426,18 +530,20 @@
 
             <!-- 업로드 페이지 -->
             <div class="upload-page" id="upload-page">
+                <div class="error-message" id="error-message"></div>
+                
                 <div class="media-upload" id="media-upload" onclick="document.getElementById('file-input').click()">
                     <div id="upload-placeholder">
                         <div class="upload-icon">📷</div>
                         <div class="upload-text">사진 또는 동영상 추가</div>
                     </div>
                     <img id="media-preview" class="media-preview" alt="미리보기">
-                    <input type="file" id="file-input" class="file-input" accept="image/*,video/*" onchange="handleFileSelect(event)">
+                    <input type="file" id="file-input" class="file-input" accept="image/*" onchange="handleFileSelect(event)">
                 </div>
 
                 <textarea class="comment-input" id="comment-input" placeholder="무슨 일이 일어나고 있나요?"></textarea>
 
-                <button class="share-btn" onclick="analyzeAndShowPopup()">공유하기</button>
+                <button class="share-btn" id="share-btn" onclick="analyzeAndShowPopup()">공유하기</button>
 
                 <!-- 성공 메시지 -->
                 <div class="success-message" id="success-message">
@@ -454,9 +560,19 @@
                     <div id="detected-items-detail"></div>
                 </div>
 
+                <div class="detail-section" id="combination-section" style="display: none;">
+                    <div class="detail-title">⚠️ 조합 위험</div>
+                    <div id="combination-risks-detail"></div>
+                </div>
+
                 <div class="detail-section">
                     <div class="detail-title">💡 개선 권고사항</div>
                     <div id="recommendations-detail"></div>
+                </div>
+
+                <div class="detail-section" id="feedback-section">
+                    <div class="detail-title">📋 종합 의견</div>
+                    <div id="personalized-feedback" style="color: #666; font-size: 14px; line-height: 1.6;"></div>
                 </div>
             </div>
         </div>
@@ -481,37 +597,48 @@
     </div>
 
     <script>
+        // 백엔드 API URL (필요시 수정)
+        const API_BASE_URL = 'http://localhost:8000';
+
         let currentMedia = null;
         let currentText = '';
         let analysisResult = null;
 
-        // 개인정보 패턴 정의 (간단한 클라이언트 측 분석용)
-        const PATTERNS = {
-            phone: /\b(?:(?:\+82|82)[-.\s]?(?:0)?|0)(?:1[016789]|2|[3-6][1-5]|70|50|1[02])(?:[-.\s]?\(?\d{2,4}\)?){1,2}\b/gu,
-
-            email: /\b(?:"[^"]+"|[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+)@(?:(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,63}|[A-Za-z0-9-]+\.co\.kr|[A-Za-z0-9-]+\.or\.kr)\b/giu,
-
-            rrn: /\b(19|20)?\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[-\s]?[1-4]\d{6}\b/gu,
-
-            credit: /\b(?:(4[0-9]{3}(?:[-\s]?[0-9]{4}){3})|(?:5[1-5][0-9]{2}(?:[-\s]?[0-9]{4}){3})|(?:3[47][0-9]{2}(?:[-\s]?[0-9]{6}[-\s]?[0-9]{5})))\b/g,
-            account: /\b(?:\d{2,4}[-\s]?\d{2,6}[-\s]?\d{2,6}[-\s]?\d{0,4}|\d{7,16})\b/g,
-            address: /\b(?:(?:서울(?:특별시)?|부산(?:광역시)?|대구(?:광역시)?|인천(?:광역시)?|광주(?:광역시)?|대전(?:광역시)?|울산(?:광역시)?|세종(?:특별자치시)?|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도|제주(?:특별자치도)?)\s+)?[가-힣]{2,20}(?:시|군|구)\b(?:\s*[가-힣A-Za-z0-9\-\s]{0,30}(?:읍|면|동|로|길|리))?(?:\s*\d{0,4}(?:-\d{1,4})?)?|\b[가-힣]{2,20}(?:동|읍|리)\b(?:\s*\d{0,4}(?:-\d{1,4})?)?/gu,
-            school: /\b[가-힣A-Za-z0-9&()]{1,30}(?:초등학교|초교|중학교|중교|고등학교|고교|대학교|대학원|대학|학교|campus|uni|university)\b/giu,
-            name: /\b[\uAC00-\uD7A3]{2,4}(?:\s?(?:님|씨|학생|선생님|교수님|대표|과장|팀장|박사|선배))?\b/gu,
-            passport: /\b[A-Z]{1,2}\d{6,9}\b/g,
-            driver_license: /\b[A-Z0-9]{6,12}\b/g,
-            biz_reg_no: /\b\d{3}[-\s]?\d{2}[-\s]?\d{5}\b/g,
-            sensitive_keywords: /\b(주민등록번호|주민등록|주민번호|계좌번호|카드번호|여권번호|운전면허증|사업자등록번호|전화번호|휴대전화|이메일)\b/giu
-        };
-
-
-        const RISK_WEIGHTS = {
-            phone: 25,
-            email: 15,
-            rrn: 40,
-            address: 20,
-            school: 10,
-            name: 10,
+        // 타입별 이름 매핑
+        const TYPE_NAMES = {
+            // 텍스트 패턴
+            'phone': '📱 전화번호',
+            'phone_international': '📱 국제 전화번호',
+            'email': '📧 이메일',
+            'rrn': '🆔 주민등록번호',
+            'address': '📍 주소',
+            'detailed_address': '🏠 상세 주소',
+            'school': '🏫 학교',
+            'workplace': '🏢 직장',
+            'name': '👤 이름',
+            'birth_date': '📅 생년월일',
+            'car_number': '🚗 차량번호',
+            'credit_card': '💳 카드번호',
+            'account': '🏦 계좌번호',
+            'passport': '✈️ 여권',
+            'driver_license': '🪪 운전면허',
+            'ip_address': '🌐 IP 주소',
+            
+            // Gemini AI 탐지
+            'face_clear': '😊 선명한 얼굴',
+            'face': '👤 얼굴',
+            'student_id': '🎓 학생증',
+            'pharmacy_bag': '💊 약봉투',
+            'delivery_label': '📦 운송장',
+            'wedding_invitation': '💒 청첩장',
+            'id_card': '🆔 신분증',
+            'body_identifiable': '🚶 신체 특징',
+            'background_info': '📋 배경 정보',
+            'handwriting': '✍️ 필적',
+            'fingerprint': '👆 지문',
+            'medical_info': '🏥 의료정보',
+            'location_landmark': '🗺️ 위치 랜드마크',
+            'medical_document': '📋 의료 문서'
         };
 
         function showUploadPage() {
@@ -529,6 +656,7 @@
             document.getElementById('back-btn').style.visibility = 'hidden';
             document.getElementById('header-title').textContent = 'SafeShare';
             document.getElementById('popup-overlay').style.display = 'none';
+            hideError();
         }
 
         function showDetailPage() {
@@ -562,6 +690,11 @@
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (file) {
+                if (!file.type.startsWith('image/')) {
+                    showError('이미지 파일만 업로드 가능합니다.');
+                    return;
+                }
+                
                 currentMedia = file;
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -578,55 +711,88 @@
             }
         }
 
-        function analyzeText(text) {
-            let detectedItems = [];
-            let totalRisk = 0;
-
-            for (const [patternName, pattern] of Object.entries(PATTERNS)) {
-                const matches = text.match(pattern);
-                if (matches) {
-                    const count = matches.length;
-                    const risk = RISK_WEIGHTS[patternName] * Math.min(count, 3);
-                    totalRisk += risk;
-                    
-                    detectedItems.push({
-                        type: patternName,
-                        count: count,
-                        risk_contribution: risk,
-                        examples: matches.slice(0, 2)
-                    });
-                }
-            }
-
-            return {
-                detected_items: detectedItems,
-                total_risk: Math.min(totalRisk, 100),
-                recommendations: generateRecommendations(detectedItems)
-            };
+        function showLoading() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            document.getElementById('share-btn').disabled = true;
         }
 
-        function generateRecommendations(items) {
-            const recommendations = [];
-            const typeMessages = {
-                phone: '전화번호를 부분적으로 가리거나 삭제하는 것을 권장합니다.',
-                email: '이메일 주소 노출로 스팸 메일 위험이 있으니 주의하세요.',
-                rrn: '주민등록번호는 절대 공개하지 마세요. 즉시 삭제하세요.',
-                address: '상세 주소보다는 동 단위까지만 공개하는 것을 권장합니다.',
-                school: '학교명으로 신원이 파악될 수 있으니 주의하세요.',
-                name: '실명 대신 닉네임 사용을 권장합니다.'
-            };
+        function hideLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById('share-btn').disabled = false;
+        }
 
-            items.forEach(item => {
-                if (typeMessages[item.type]) {
-                    recommendations.push(typeMessages[item.type]);
-                }
-            });
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
 
-            if (recommendations.length === 0) {
-                recommendations.push('개인정보 노출 위험이 낮습니다. 하지만 항상 주의하세요.');
+        function hideError() {
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        async function analyzeAndShowPopup() {
+            currentText = document.getElementById('comment-input').value.trim();
+            
+            // 텍스트와 이미지 둘 다 없으면 경고
+            if (!currentText && !currentMedia) {
+                showError('텍스트를 입력하거나 이미지를 업로드해주세요.');
+                return;
             }
 
-            return recommendations;
+            showLoading();
+            hideError();
+
+            try {
+                // FormData 생성
+                const formData = new FormData();
+                
+                if (currentText) {
+                    formData.append('text', currentText);
+                }
+                
+                if (currentMedia) {
+                    formData.append('file', currentMedia);
+                }
+
+                // API 호출
+                const response = await fetch(`${API_BASE_URL}/analyze/combined`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`서버 오류: ${response.status}`);
+                }
+
+                analysisResult = await response.json();
+                console.log('분석 결과:', analysisResult);
+
+                // 결과를 팝업에 표시
+                displayPopupResult(analysisResult);
+
+            } catch (error) {
+                console.error('분석 오류:', error);
+                showError('분석 중 오류가 발생했습니다. 서버가 실행 중인지 확인해주세요.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayPopupResult(result) {
+            const riskInfo = getRiskLevel(result.risk_score);
+            
+            // 팝업에 결과 표시
+            document.getElementById('risk-score').textContent = result.risk_score;
+            document.getElementById('risk-level').textContent = result.risk_level;
+            document.getElementById('risk-level').className = `risk-level ${riskInfo.class}`;
+            document.getElementById('risk-description').textContent = result.personalized_feedback || getRiskDescription(result.risk_level);
+            
+            // 팝업 표시
+            document.getElementById('popup-overlay').style.display = 'flex';
         }
 
         function getRiskLevel(score) {
@@ -645,80 +811,81 @@
                 '위험': '중요한 개인정보가 다수 노출될 수 있습니다.',
                 '매우 위험': '매우 민감한 개인정보가 다량 노출될 수 있습니다.'
             };
-            return descriptions[level];
+            return descriptions[level] || '개인정보 분석 완료';
         }
 
         function getItemTypeName(type) {
-            const names = {
-                phone: '📱 전화번호',
-                email: '📧 이메일',
-                rrn: '🆔 주민등록번호',
-                address: '📍 주소',
-                school: '🏫 학교명',
-                name: '👤 실명'
-            };
-            return names[type] || '🔎 기타';
+            return TYPE_NAMES[type] || `🔎 ${type}`;
         }
 
-        function analyzeAndShowPopup() {
-            currentText = document.getElementById('comment-input').value;
-            
-            // 간단한 분석 수행
-            analysisResult = analyzeText(currentText);
-            
-            // 미디어가 있으면 추가 위험도 부여
-            if (currentMedia) {
-                analysisResult.total_risk += 15; // 이미지/동영상 업로드 기본 위험도
-                analysisResult.detected_items.push({
-                    type: 'media',
-                    count: 1,
-                    risk_contribution: 15,
-                    description: '이미지 또는 동영상이 포함되어 있습니다'
-                });
-            }
-
-            const riskInfo = getRiskLevel(analysisResult.total_risk);
-            
-            // 팝업에 결과 표시
-            document.getElementById('risk-score').textContent = analysisResult.total_risk;
-            document.getElementById('risk-level').textContent = riskInfo.level;
-            document.getElementById('risk-level').className = `risk-level ${riskInfo.class}`;
-            document.getElementById('risk-description').textContent = getRiskDescription(riskInfo.level);
-            
-            // 팝업 표시
-            document.getElementById('popup-overlay').style.display = 'flex';
+        function getSourceText(source) {
+            const sources = {
+                'text': '텍스트',
+                'image': '이미지 (AI)',
+                'image_text': '이미지 내 텍스트'
+            };
+            return sources[source] || source;
         }
 
         function displayDetailedResults(result) {
             // 탐지된 항목 표시
             const detectedContainer = document.getElementById('detected-items-detail');
-            if (result.detected_items.length === 0) {
-                detectedContainer.innerHTML = '<p style="color: #666;">탐지된 개인정보가 없습니다.</p>';
+            if (!result.detected_items || result.detected_items.length === 0) {
+                detectedContainer.innerHTML = '<p style="color: #666;">탐지된 개인정보가 없습니다. ✅</p>';
             } else {
                 detectedContainer.innerHTML = result.detected_items.map(item => {
                     const typeName = getItemTypeName(item.type);
+                    const sourceText = item.source ? getSourceText(item.source) : '';
+                    const description = item.description || `${item.count}개 발견`;
+                    
                     return `
                         <div class="detected-item">
                             <div class="item-header">
                                 <span class="item-type">${typeName}</span>
-                                <span class="item-risk">위험도: ${item.risk_contribution}점</span>
+                                <span class="item-risk">위험도: ${Math.round(item.risk_contribution)}점</span>
                             </div>
-                            <div class="item-description">
-                                ${item.description || `${item.count}개 발견`}
-                            </div>
+                            <div class="item-description">${description}</div>
+                            ${sourceText ? `<div class="item-source">출처: ${sourceText}</div>` : ''}
+                            ${item.confidence ? `<div class="item-source">신뢰도: ${Math.round(item.confidence * 100)}%</div>` : ''}
                         </div>
                     `;
                 }).join('');
             }
 
+            // 조합 위험 표시
+            const comboSection = document.getElementById('combination-section');
+            const comboContainer = document.getElementById('combination-risks-detail');
+            
+            if (result.combination_risks && result.combination_risks.length > 0) {
+                comboSection.style.display = 'block';
+                comboContainer.innerHTML = result.combination_risks.map(combo => {
+                    return `
+                        <div class="combo-risk-item ${combo.severity === 'high' ? 'high' : ''}">
+                            <div class="combo-risk-name">${combo.name}</div>
+                            <div class="combo-risk-desc">${combo.description}</div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                comboSection.style.display = 'none';
+            }
+
             // 권고사항 표시
             const recommendationsContainer = document.getElementById('recommendations-detail');
-            recommendationsContainer.innerHTML = result.recommendations.map(rec => `
-                <div class="recommendation-item">
-                    <span class="rec-icon">💡</span>
-                    <span class="rec-text">${rec}</span>
-                </div>
-            `).join('');
+            if (result.recommendations && result.recommendations.length > 0) {
+                recommendationsContainer.innerHTML = result.recommendations.map(rec => `
+                    <div class="recommendation-item">
+                        <span class="rec-icon">💡</span>
+                        <span class="rec-text">${rec}</span>
+                    </div>
+                `).join('');
+            } else {
+                recommendationsContainer.innerHTML = '<p style="color: #666;">특별한 권고사항이 없습니다.</p>';
+            }
+
+            // 종합 피드백 표시
+            const feedbackContainer = document.getElementById('personalized-feedback');
+            feedbackContainer.textContent = result.personalized_feedback || '개인정보 분석이 완료되었습니다.';
         }
 
         function uploadPost() {
@@ -728,7 +895,7 @@
             // 성공 메시지 표시
             document.getElementById('success-message').style.display = 'block';
             
-            // 3초 후 메인 페이지로 돌아가기
+            // 2초 후 메인 페이지로 돌아가기
             setTimeout(() => {
                 resetUploadPage();
                 showMainPage();
@@ -772,9 +939,25 @@
             mediaUpload.style.borderColor = '#ccc';
             
             const files = e.dataTransfer.files;
-            if (files.length > 0 && (files[0].type.startsWith('image/') || files[0].type.startsWith('video/'))) {
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
                 const event = { target: { files: [files[0]] } };
                 handleFileSelect(event);
+            }
+        });
+
+        // 페이지 로드 시 서버 연결 확인
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ 서버 연결 성공:', data);
+                } else {
+                    console.warn('⚠️ 서버 응답 오류');
+                }
+            } catch (error) {
+                console.error('❌ 서버 연결 실패:', error);
+                console.log('💡 백엔드 서버(http://localhost:8000)가 실행 중인지 확인하세요.');
             }
         });
     </script>
