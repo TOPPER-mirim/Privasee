@@ -21,7 +21,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Gemini API 설정
-GEMINI_API_KEY = os.getenv("AIzaSyBHDNQa_5rVWZwLJzGafR9EUtp4ZX1oKBA", "AIzaSyBHDNQa_5rVWZwLJzGafR9EUtp4ZX1oKBA")
+
+GEMINI_API_KEY = "AIzaSyBHDNQa_5rVWZwLJzGafR9EUtp4ZX1oKBA"  # 실제 키로 교체
 genai.configure(api_key=GEMINI_API_KEY)
 
 # FastAPI 앱 초기화
@@ -296,7 +297,7 @@ async def analyze_image_with_gemini(image_bytes: bytes) -> Dict:
             }
         
         # Gemini 모델 초기화
-        model = genai.GenerativeModel("gemini-1.5-pro-latest")
+        model = genai.GenerativeModel("gemini-2.5-pro")
         
         # 이미지를 PIL로 변환
         from PIL import Image as PILImage
