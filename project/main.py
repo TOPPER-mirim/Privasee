@@ -151,7 +151,7 @@ RISK_WEIGHTS = {
     'address': 20,
     'detailed_address': 30,
     'school': 12,
-    'name': 10,
+    'name': 5,
     'credit_card': 45,
     'account': 35,
     'birth_date': 25,
