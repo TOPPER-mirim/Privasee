@@ -101,9 +101,9 @@ PATTERNS = {
     'postal_code': r'\b\d{5}\b',
     
     # 학교명 (더 세밀한 패턴)
-    'school_elementary': r'\b[A-Za-z가-힣0-9\s\-]{2,40}초등학교\b',
-    'school_middle': r'\b[A-Za-z가-힣0-9\s\-]{2,40}중학교\b',
-    'school_high': r'\b[A-Za-z가-힣0-9\s\-]{2,40}고등학교\b',
+    'school_elementary': r'\b[A-Za-z가-힣0-9\s\-]{2,40}(?:초등학교|초)\b',
+    'school_middle': r'\b[A-Za-z가-힣0-9\s\-]{2,40}(?:중학교|중)\b',
+    'school_high': r'\b[A-Za-z가-힣0-9\s\-]{2,40}(?:고등학교|고)\b',
     'school_university': r'\b[A-Za-z가-힣0-9\s\-]{2,40}(?:대학교|대학)\b',
     
     # 직장/기관명 (더 세밀한 패턴)
