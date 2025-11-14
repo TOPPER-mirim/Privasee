@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Gemini API 설정
 
-GEMINI_API_KEY = "AIzaSyDG7IJoHBeJcQ419DMhdlTh6b7J-irDZ5M"  # 실제 키로 교체
+GEMINI_API_KEY = "AIzaSyCUngmdy2zZQ7dgztrBOvWsjZay7rXnNVE"  # 실제 키로 교체
 genai.configure(api_key=GEMINI_API_KEY)
 
 # FastAPI 앱 초기화
