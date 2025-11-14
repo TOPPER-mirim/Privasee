@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -226,8 +227,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .loading-text {
@@ -267,6 +273,7 @@
                 transform: translateY(20px);
                 opacity: 0;
             }
+
             to {
                 transform: translateY(0);
                 opacity: 1;
@@ -300,11 +307,30 @@
             margin-bottom: 15px;
         }
 
-        .risk-safe { color: #34C759; background: #E8F7ED; }
-        .risk-good { color: #32D74B; background: #E6F8E6; }
-        .risk-caution { color: #FF9500; background: #FFF4E0; }
-        .risk-danger { color: #FF3B30; background: #FFE6E6; }
-        .risk-critical { color: #DC143C; background: #FFE0E0; }
+        .risk-safe {
+            color: #34C759;
+            background: #E8F7ED;
+        }
+
+        .risk-good {
+            color: #32D74B;
+            background: #E6F8E6;
+        }
+
+        .risk-caution {
+            color: #FF9500;
+            background: #FFF4E0;
+        }
+
+        .risk-danger {
+            color: #FF3B30;
+            background: #FFE6E6;
+        }
+
+        .risk-critical {
+            color: #DC143C;
+            background: #FFE0E0;
+        }
 
         .risk-description {
             color: #666;
@@ -492,6 +518,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="phone-container">
         <!-- 상태바 -->
@@ -530,14 +557,15 @@
             <!-- 업로드 페이지 -->
             <div class="upload-page" id="upload-page">
                 <div class="error-message" id="error-message"></div>
-                
+
                 <div class="media-upload" id="media-upload" onclick="document.getElementById('file-input').click()">
                     <div id="upload-placeholder">
                         <div class="upload-icon">📷</div>
                         <div class="upload-text">사진 또는 동영상 추가</div>
                     </div>
                     <img id="media-preview" class="media-preview" alt="미리보기">
-                    <input type="file" id="file-input" class="file-input" accept="image/*" onchange="handleFileSelect(event)">
+                    <input type="file" id="file-input" class="file-input" accept="image/*"
+                        onchange="handleFileSelect(event)">
                 </div>
 
                 <textarea class="comment-input" id="comment-input" placeholder="무슨 일이 일어나고 있나요?"></textarea>
@@ -622,7 +650,7 @@
             'passport': '✈️ 여권',
             'driver_license': '🪪 운전면허',
             'ip_address': '🌐 IP 주소',
-            
+
             // Gemini AI 탐지
             'face_clear': '😊 선명한 얼굴',
             'face': '👤 얼굴',
@@ -663,7 +691,7 @@
             document.getElementById('detail-page').style.display = 'block';
             document.getElementById('popup-overlay').style.display = 'none';
             document.getElementById('header-title').textContent = '위험도 분석 결과';
-            
+
             if (analysisResult) {
                 displayDetailedResults(analysisResult);
             }
@@ -675,10 +703,10 @@
             document.getElementById('header-title').textContent = '새 게시물';
         }
 
-        document.getElementById('back-btn').addEventListener('click', function() {
+        document.getElementById('back-btn').addEventListener('click', function () {
             const detailPage = document.getElementById('detail-page');
             const uploadPage = document.getElementById('upload-page');
-            
+
             if (detailPage.style.display !== 'none') {
                 goBackFromDetail();
             } else if (uploadPage.style.display !== 'none') {
@@ -693,14 +721,14 @@
                     showError('이미지 파일만 업로드 가능합니다.');
                     return;
                 }
-                
+
                 currentMedia = file;
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     const preview = document.getElementById('media-preview');
                     const placeholder = document.getElementById('upload-placeholder');
                     const container = document.getElementById('media-upload');
-                    
+
                     preview.src = e.target.result;
                     preview.style.display = 'block';
                     placeholder.style.display = 'none';
@@ -735,7 +763,7 @@
 
         async function analyzeAndShowPopup() {
             currentText = document.getElementById('comment-input').value.trim();
-            
+
             // 텍스트와 이미지 둘 다 없으면 경고
             if (!currentText && !currentMedia) {
                 showError('텍스트를 입력하거나 이미지를 업로드해주세요.');
@@ -746,22 +774,33 @@
             hideError();
 
             try {
-                // FormData 생성
-                const formData = new FormData();
-                
-                if (currentText) {
-                    formData.append('text', currentText);
-                }
-                
-                if (currentMedia) {
-                    formData.append('file', currentMedia);
-                }
+                let response;
 
-                // API 호출
-                const response = await fetch(`${API_BASE_URL}/analyze/combined`, {
-                    method: 'POST',
-                    body: formData
-                });
+                // 🔧 여기를 수정! 텍스트만 있으면 /analyze/text 사용
+                if (currentText && !currentMedia) {
+                    // 텍스트만 분석
+                    response = await fetch(`${API_BASE_URL}/analyze/text`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: currentText })
+                    });
+                } else {
+                    // 이미지 있으면 /analyze/combined 사용
+                    const formData = new FormData();
+
+                    if (currentText) {
+                        formData.append('text', currentText);
+                    }
+
+                    if (currentMedia) {
+                        formData.append('file', currentMedia);
+                    }
+
+                    response = await fetch(`${API_BASE_URL}/analyze/combined`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
 
                 if (!response.ok) {
                     throw new Error(`서버 오류: ${response.status}`);
@@ -780,16 +819,15 @@
                 hideLoading();
             }
         }
-
         function displayPopupResult(result) {
             const riskInfo = getRiskLevel(result.risk_score);
-            
+
             // 팝업에 결과 표시
             document.getElementById('risk-score').textContent = result.risk_score;
             document.getElementById('risk-level').textContent = result.risk_level;
             document.getElementById('risk-level').className = `risk-level ${riskInfo.class}`;
             document.getElementById('risk-description').textContent = result.personalized_feedback || getRiskDescription(result.risk_level);
-            
+
             // 팝업 표시
             document.getElementById('popup-overlay').style.display = 'flex';
         }
@@ -836,7 +874,7 @@
                     const typeName = getItemTypeName(item.type);
                     const sourceText = item.source ? getSourceText(item.source) : '';
                     const description = item.description || `${item.count}개 발견`;
-                    
+
                     return `
                         <div class="detected-item">
                             <div class="item-header">
@@ -854,7 +892,7 @@
             // 조합 위험 표시
             const comboSection = document.getElementById('combination-section');
             const comboContainer = document.getElementById('combination-risks-detail');
-            
+
             if (result.combination_risks && result.combination_risks.length > 0) {
                 comboSection.style.display = 'block';
                 comboContainer.innerHTML = result.combination_risks.map(combo => {
@@ -887,13 +925,14 @@
             feedbackContainer.textContent = result.personalized_feedback || '개인정보 분석이 완료되었습니다.';
         }
 
+
         function uploadPost() {
             // 팝업 닫기
             document.getElementById('popup-overlay').style.display = 'none';
-            
+
             // 성공 메시지 표시
             document.getElementById('success-message').style.display = 'block';
-            
+
             // 2초 후 메인 페이지로 돌아가기
             setTimeout(() => {
                 resetUploadPage();
@@ -905,16 +944,16 @@
             // 입력 필드 초기화
             document.getElementById('comment-input').value = '';
             document.getElementById('file-input').value = '';
-            
+
             // 미디어 미리보기 초기화
             const preview = document.getElementById('media-preview');
             const placeholder = document.getElementById('upload-placeholder');
             const container = document.getElementById('media-upload');
-            
+
             preview.style.display = 'none';
             placeholder.style.display = 'block';
             container.classList.remove('has-media');
-            
+
             // 변수 초기화
             currentMedia = null;
             currentText = '';
@@ -923,7 +962,7 @@
 
         // 드래그 앤 드롭 기능
         const mediaUpload = document.getElementById('media-upload');
-        
+
         mediaUpload.addEventListener('dragover', (e) => {
             e.preventDefault();
             mediaUpload.style.borderColor = '#007AFF';
@@ -936,7 +975,7 @@
         mediaUpload.addEventListener('drop', (e) => {
             e.preventDefault();
             mediaUpload.style.borderColor = '#ccc';
-            
+
             const files = e.dataTransfer.files;
             if (files.length > 0 && files[0].type.startsWith('image/')) {
                 const event = { target: { files: [files[0]] } };
@@ -961,4 +1000,5 @@
         });
     </script>
 </body>
+
 </html>

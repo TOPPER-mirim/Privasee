@@ -53,9 +53,9 @@ class AnalysisResponse(BaseModel):
 
 # 개인정보 패턴 정의 (정규식)
 PATTERNS = {
-    # 전화번호 (더 유연한 패턴)
-    'phone': r'(?:\b0(?:1[016789]|2|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4}\b)',
-    'phone_international': r'(?:\+\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4})',
+    # 전화번호 (더 유연한 패턴) - 수정됨
+    'phone': r'0(?:1[016789]|2|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4}',
+    'phone_international': r'\+\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}',
     
     # 이메일
     'email': r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b',
@@ -76,7 +76,7 @@ PATTERNS = {
     'credit_card_partial': r'\b\d{4}[-\s]?[*]{4}[-\s]?[*]{4}[-\s]?\d{4}\b',  # 일부 마스킹된 경우
     
     # 계좌번호
-    'account': r'\b\d{2,6}[-\s]?\d{2,6}[-\s]?\d{4,}\b',
+    'account': r'\b(?!0(?:1[016789]|2|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4})\d{3,6}[-\s]?\d{2,6}[-\s]?\d{4,}\b',
     
     # 주소 관련 (세분화)
     # 1. 시/도 단위
@@ -302,7 +302,6 @@ def analyze_text_with_regex(text: str) -> Dict:
     
     logger.info(f"텍스트 정규식 분석 시작: {len(text)} 글자")
     
-    # 최적화 1: 패턴 컴파일 캐싱 (전역으로 한 번만 컴파일)
     if not hasattr(analyze_text_with_regex, '_compiled_patterns'):
         analyze_text_with_regex._compiled_patterns = {
             name: re.compile(pattern, re.IGNORECASE) 
@@ -311,28 +310,48 @@ def analyze_text_with_regex(text: str) -> Dict:
     
     compiled_patterns = analyze_text_with_regex._compiled_patterns
     
-    # 최적화 2: 텍스트 전처리 (너무 긴 텍스트는 제한)
-    max_text_length = 50000  # 5만자 제한
+    # 텍스트 길이 제한
+    max_text_length = 50000
     if len(text) > max_text_length:
         text = text[:max_text_length]
         logger.warning(f"텍스트 길이 제한: {max_text_length}자로 자름")
     
+    # ✅ 전화번호를 먼저 찾아서 제외 목록 만들기
+    phone_matches = []
+    for pattern_name in ['phone', 'phone_international']:
+        if pattern_name in compiled_patterns:
+            for match_obj in compiled_patterns[pattern_name].finditer(text):
+                phone_matches.append((match_obj.start(), match_obj.end(), match_obj.group(0)))
+    
+    def is_phone_number(start, end):
+        """해당 위치가 전화번호인지 확인"""
+        for p_start, p_end, _ in phone_matches:
+            if start >= p_start and end <= p_end:
+                return True
+        return False
+    
     for pattern_name, compiled_pattern in compiled_patterns.items():
         try:
-            # 최적화 3: findall 대신 finditer 사용 (메모리 효율)
-            matches = list(compiled_pattern.finditer(text))
+            matches = []
+            for match_obj in compiled_pattern.finditer(text):
+                # ✅ 계좌번호 패턴이면 전화번호인지 확인
+                if pattern_name == 'account':
+                    if is_phone_number(match_obj.start(), match_obj.end()):
+                        logger.info(f"❌ 계좌번호 제외 (전화번호임): {match_obj.group(0)}")
+                        continue
+                
+                matches.append(match_obj)
             
             if matches:
                 count = len(matches)
                 risk = RISK_WEIGHTS.get(pattern_name, 10) * min(count, 3)
                 total_risk += risk
                 
-                # 최적화 4: 예시는 최대 2개만 (마스킹 비용 절감)
+                # 마스킹 예시
                 masked_examples = []
                 for match_obj in matches[:2]:
                     match = match_obj.group(0)
                     
-                    # 민감정보 강력 마스킹
                     if pattern_name in ['rrn', 'credit_card', 'account', 'passport', 'driver_license']:
                         if len(match) > 6:
                             masked = match[:2] + '*' * (len(match) - 4) + match[-2:]
