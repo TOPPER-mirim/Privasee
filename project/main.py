@@ -423,7 +423,7 @@ async def analyze_image_with_gemini(image_bytes: bytes) -> Dict:
         }
         
         model = genai.GenerativeModel(
-            "gemini-2.0-flash-exp",  # 더 빠른 모델 사용 (기존: gemini-2.5-pro)
+            "gemini-1.5-flash",
             generation_config=generation_config
         )
         
